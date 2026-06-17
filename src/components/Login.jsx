@@ -20,7 +20,11 @@ export default function Login({ onLoginSuccess }) {
 
     try {
       const data = await api.auth.login(username, password);
-      onLoginSuccess(data.user || { username, role: data.role });
+      onLoginSuccess({
+        id: data.userId,
+        username: data.username || username,
+        role: data.role
+      });
     } catch (err) {
       setError(err.message || 'Error de inicio de sesión. Verifique sus credenciales.');
     } finally {

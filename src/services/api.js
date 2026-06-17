@@ -42,10 +42,14 @@ const request = async (endpoint, options = {}) => {
   const token = getToken();
   
   const headers = {
-    'Content-Type': 'application/json',
     ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
     ...options.headers,
   };
+
+  // Only set Content-Type to application/json if it's not FormData
+  if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   const config = {
     ...options,
@@ -65,7 +69,11 @@ export const api = {
       });
       if (data && data.token) {
         localStorage.setItem('edutrack_token', data.token);
-        localStorage.setItem('edutrack_user', JSON.stringify(data.user || { username, role: data.role }));
+        localStorage.setItem('edutrack_user', JSON.stringify({
+          id: data.userId,
+          username: data.username || username,
+          role: data.role
+        }));
       }
       return data;
     },
@@ -156,5 +164,78 @@ export const api = {
     unenroll: (enrollmentId) => request(`/enrollments/${enrollmentId}`, {
       method: 'DELETE',
     }),
+  },
+
+  assignments: {
+    create: (data) => request('/assignments', {
+      method: 'POST',
+      body: data,
+    }),
+    getBySection: (sectionId) => request(`/assignments/section/${sectionId}`),
+    submit: (assignmentId, studentId, comment, file) => {
+      const formData = new FormData();
+      formData.append('studentId', studentId);
+      if (comment) {
+        formData.append('comment', comment);
+      }
+      formData.append('file', file);
+      return request(`/assignments/${assignmentId}/submit`, {
+        method: 'POST',
+        body: formData,
+      });
+    },
+    getSubmissions: (sectionId) => request(`/assignments/section/${sectionId}/submissions`)
+  },
+
+  grades: {
+    record: (data) => request('/grades', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+    getSectionGrades: (sectionId) => request(`/grades/section/${sectionId}`),
+    getFinalGrades: (sectionId) => request(`/grades/section/${sectionId}/final`)
+  },
+
+  materials: {
+    upload: (sectionId, weekNumber, title, file) => {
+      const formData = new FormData();
+      formData.append('sectionId', sectionId);
+      formData.append('weekNumber', weekNumber);
+      formData.append('title', title);
+      formData.append('file', file);
+      return request('/materials', {
+        method: 'POST',
+        body: formData,
+      });
+    },
+    getBySection: (sectionId) => request(`/materials/section/${sectionId}`),
+    delete: (id) => request(`/materials/${id}`, {
+      method: 'DELETE',
+    }),
+    toggleVisibility: (id) => request(`/materials/${id}/toggle-visibility`, {
+      method: 'PUT',
+    })
+  },
+
+  attendance: {
+    record: (data) => request('/attendance', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+    getBySection: (sectionId) => request(`/attendance/section/${sectionId}`),
+    submitJustification: (attendanceId, reason, proofFile) => {
+      const formData = new FormData();
+      formData.append('reason', reason);
+      if (proofFile) {
+        formData.append('proofFile', proofFile);
+      }
+      return request(`/attendance/${attendanceId}/justify`, {
+        method: 'POST',
+        body: formData,
+      });
+    },
+    resolveJustification: (justificationId, status) => request(`/attendance/justifications/${justificationId}/resolve?status=${status}`, {
+      method: 'PUT',
+    })
   }
 };
