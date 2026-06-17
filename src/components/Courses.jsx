@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { BookOpen, Plus, Edit2, Trash2, ShieldAlert, CheckCircle, HelpCircle } from 'lucide-react';
+import CourseContent from './CourseContent';
 
 export default function Courses({ user }) {
   const [courses, setCourses] = useState([]);
@@ -18,6 +19,10 @@ export default function Courses({ user }) {
   const [description, setDescription] = useState('');
   const [credits, setCredits] = useState(3);
 
+  // States for course details inline view
+  const [selectedSectionId, setSelectedSectionId] = useState(null);
+  const [courseToSectionMap, setCourseToSectionMap] = useState({});
+
   const isAdmin = user.role === 'ADMIN';
 
   const fetchCourses = async () => {
@@ -30,17 +35,29 @@ export default function Courses({ user }) {
         setCourses(allCourses || []);
       } else if (user.role === 'TEACHER') {
         const allSections = await api.sections.getAll();
-        const teacherSections = allSections.filter(sec => sec.teacherUsername === user.username);
+        const teacherSections = allSections.filter(sec => sec.teacherUsername === user.username && sec.period === '2026-I');
         const assignedCourseIds = [...new Set(teacherSections.map(sec => sec.courseId))];
         const teacherCourses = allCourses.filter(c => assignedCourseIds.includes(c.id));
+        
+        const mapping = {};
+        teacherSections.forEach(sec => {
+          mapping[sec.courseId] = sec.id;
+        });
+        setCourseToSectionMap(mapping);
         setCourses(teacherCourses);
       } else if (user.role === 'STUDENT') {
         const studentEnrollments = await api.enrollments.getMyEnrollments();
         const allSections = await api.sections.getAll();
         const enrolledSectionIds = studentEnrollments.map(enr => enr.sectionId);
-        const studentSections = allSections.filter(sec => enrolledSectionIds.includes(sec.id));
+        const studentSections = allSections.filter(sec => enrolledSectionIds.includes(sec.id) && sec.period === '2026-I');
         const enrolledCourseIds = [...new Set(studentSections.map(sec => sec.courseId))];
         const studentCourses = allCourses.filter(c => enrolledCourseIds.includes(c.id));
+        
+        const mapping = {};
+        studentSections.forEach(sec => {
+          mapping[sec.courseId] = sec.id;
+        });
+        setCourseToSectionMap(mapping);
         setCourses(studentCourses);
       }
     } catch (err) {
@@ -123,6 +140,16 @@ export default function Courses({ user }) {
     }
   };
 
+  if (selectedSectionId) {
+    return (
+      <CourseContent
+        user={user}
+        preSelectedSectionId={selectedSectionId}
+        onBack={() => setSelectedSectionId(null)}
+      />
+    );
+  }
+
   return (
     <div style={styles.container}>
       <div className="flex-between mb-20">
@@ -173,7 +200,39 @@ export default function Courses({ user }) {
             </div>
           ) : (
             courses.map((course) => (
-              <div key={course.id} className="glass-card" style={styles.courseCard}>
+              <div 
+                key={course.id} 
+                className="glass-card" 
+                style={{
+                  ...styles.courseCard,
+                  cursor: !isAdmin ? 'pointer' : 'default',
+                  transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease',
+                }}
+                onClick={() => {
+                  if (!isAdmin) {
+                    const sectionId = courseToSectionMap[course.id];
+                    if (sectionId) {
+                      setSelectedSectionId(sectionId);
+                    } else {
+                      setError('No se encontró una sección activa para este curso en el periodo actual.');
+                    }
+                  }
+                }}
+                onMouseEnter={(e) => {
+                  if (!isAdmin) {
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                    e.currentTarget.style.boxShadow = '0 12px 30px rgba(111, 44, 246, 0.15)';
+                    e.currentTarget.style.borderColor = 'hsla(263, 90%, 51%, 0.3)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isAdmin) {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.borderColor = 'var(--border-light)';
+                  }
+                }}
+              >
                 <div className="flex-between mb-20">
                   <div style={styles.codeBadge}>{course.code}</div>
                   <div style={styles.creditsLabel}>{course.credits} Créditos</div>
@@ -185,7 +244,7 @@ export default function Courses({ user }) {
                 </p>
 
                 {isAdmin && (
-                  <div style={styles.courseFooter}>
+                  <div style={styles.courseFooter} onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => openEditModal(course)}
                       className="btn btn-secondary"
@@ -201,6 +260,27 @@ export default function Courses({ user }) {
                     >
                       <Trash2 size={14} />
                       <span>Eliminar</span>
+                    </button>
+                  </div>
+                )}
+
+                {!isAdmin && (
+                  <div style={styles.courseFooter}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const sectionId = courseToSectionMap[course.id];
+                        if (sectionId) {
+                          setSelectedSectionId(sectionId);
+                        } else {
+                          setError('No se encontró una sección activa para este curso en el periodo actual.');
+                        }
+                      }}
+                      className="btn btn-primary"
+                      style={{ width: '100%', justifyContent: 'center', gap: '8px' }}
+                    >
+                      <BookOpen size={16} />
+                      <span>Ver Contenido</span>
                     </button>
                   </div>
                 )}
