@@ -10,12 +10,20 @@ import {
   X,
   User,
   Activity,
-  ServerCrash
+  ServerCrash,
+  FileText,
+  Award,
+  CalendarCheck,
+  Book
 } from 'lucide-react';
 import Users from './Users';
 import Courses from './Courses';
 import Sections from './Sections';
 import Enrollments from './Enrollments';
+import Grades from './Grades';
+import Attendance from './Attendance';
+import CourseContent from './CourseContent';
+import Assignments from './Assignments';
 
 export default function Dashboard({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('courses');
@@ -60,12 +68,16 @@ export default function Dashboard({ user, onLogout }) {
         { id: 'courses', label: 'Mis Cursos', icon: <BookOpen size={20} /> },
         { id: 'sections', label: 'Mis Secciones', icon: <Layers size={20} /> },
         { id: 'enrollments', label: 'Ver Alumnos', icon: <UserCheck size={20} /> },
+        { id: 'grades', label: 'Notas', icon: <Award size={20} /> },
+        { id: 'attendance', label: 'Asistencia', icon: <CalendarCheck size={20} /> },
       ];
     } else {
       // STUDENT
       return [
         { id: 'courses', label: 'Mis Cursos', icon: <BookOpen size={20} /> },
         { id: 'sections', label: 'Mis Secciones', icon: <Layers size={20} /> },
+        { id: 'grades', label: 'Mis Notas', icon: <Award size={20} /> },
+        { id: 'attendance', label: 'Asistencia', icon: <CalendarCheck size={20} /> },
       ];
     }
   };
@@ -76,10 +88,18 @@ export default function Dashboard({ user, onLogout }) {
         return <Users user={user} />;
       case 'courses':
         return <Courses user={user} />;
+      case 'content':
+        return <CourseContent user={user} />;
       case 'sections':
         return <Sections user={user} />;
       case 'enrollments':
         return <Enrollments user={user} />;
+      case 'assignments':
+        return <Assignments user={user} />;
+      case 'grades':
+        return <Grades user={user} />;
+      case 'attendance':
+        return <Attendance user={user} />;
       default:
         return <Courses user={user} />;
     }
