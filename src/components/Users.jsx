@@ -18,6 +18,11 @@ export default function Users({ user }) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('STUDENT');
   const [isActive, setIsActive] = useState(true);
+  const [activeRoleTab, setActiveRoleTab] = useState('STUDENT');
+
+  const filteredUsers = users
+    .filter((u) => u.role === activeRoleTab)
+    .sort((a, b) => a.username.localeCompare(b.username, 'es', { sensitivity: 'base' }));
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -146,6 +151,36 @@ export default function Users({ user }) {
         </div>
       )}
 
+      <div style={styles.tabContainer}>
+        <button
+          onClick={() => setActiveRoleTab('STUDENT')}
+          style={{
+            ...styles.tabButton,
+            ...(activeRoleTab === 'STUDENT' ? styles.activeTabButton : {})
+          }}
+        >
+          Estudiantes ({users.filter(u => u.role === 'STUDENT').length})
+        </button>
+        <button
+          onClick={() => setActiveRoleTab('TEACHER')}
+          style={{
+            ...styles.tabButton,
+            ...(activeRoleTab === 'TEACHER' ? styles.activeTabButton : {})
+          }}
+        >
+          Docentes ({users.filter(u => u.role === 'TEACHER').length})
+        </button>
+        <button
+          onClick={() => setActiveRoleTab('ADMIN')}
+          style={{
+            ...styles.tabButton,
+            ...(activeRoleTab === 'ADMIN' ? styles.activeTabButton : {})
+          }}
+        >
+          Admins ({users.filter(u => u.role === 'ADMIN').length})
+        </button>
+      </div>
+
       {loading ? (
         <div style={styles.loaderContainer}>
           <div style={styles.spinner}></div>
@@ -165,14 +200,14 @@ export default function Users({ user }) {
               </tr>
             </thead>
             <tbody>
-              {users.length === 0 ? (
+              {filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan="6" style={{ textAlign: 'center', padding: '40px 0', color: 'hsl(var(--text-muted))' }}>
-                    No hay usuarios registrados en el sistema.
+                    {activeRoleTab === 'STUDENT' ? 'No hay estudiantes registrados.' : activeRoleTab === 'TEACHER' ? 'No hay docentes registrados.' : 'No hay administradores registrados.'}
                   </td>
                 </tr>
               ) : (
-                users.map((u) => (
+                filteredUsers.map((u) => (
                   <tr key={u.id}>
                     <td>{u.id}</td>
                     <td style={{ fontWeight: '600' }}>{u.username}</td>
@@ -316,6 +351,29 @@ export default function Users({ user }) {
 const styles = {
   container: {
     width: '100%',
+  },
+  tabContainer: {
+    display: 'flex',
+    gap: '8px',
+    marginBottom: '25px',
+    borderBottom: '1px solid var(--border-light)',
+  },
+  tabButton: {
+    background: 'transparent',
+    border: 'none',
+    borderBottom: '3px solid transparent',
+    padding: '12px 20px',
+    color: 'hsl(var(--text-muted))',
+    fontFamily: 'var(--font-heading)',
+    fontWeight: '600',
+    fontSize: '0.95rem',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    marginBottom: '-1px',
+  },
+  activeTabButton: {
+    color: 'hsl(var(--primary-hover))',
+    borderBottomColor: 'hsl(263, 90%, 51%)',
   },
   pageTitle: {
     fontFamily: 'var(--font-heading)',
