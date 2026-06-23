@@ -29,6 +29,23 @@ export default function Dashboard({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('courses');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [backendStatus, setBackendStatus] = useState('checking'); // checking | online | offline
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      if (mobile) {
+        setSidebarOpen(false); // Default closed on mobile
+      } else {
+        setSidebarOpen(true); // Default open on desktop
+      }
+    };
+    
+    handleResize(); // Initial call
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     // Check connection with backend on mount
@@ -123,12 +140,17 @@ export default function Dashboard({ user, onLogout }) {
   return (
     <div style={styles.dashboardContainer}>
       {/* Mobile Toggle Button */}
-      <button 
-        onClick={() => setSidebarOpen(!sidebarOpen)} 
-        style={styles.mobileToggleBtn}
-      >
-        {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
-      </button>
+      {isMobile && (
+        <button 
+          onClick={() => setSidebarOpen(!sidebarOpen)} 
+          style={{
+            ...styles.mobileToggleBtn,
+            display: 'flex', // Force show on mobile
+          }}
+        >
+          {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+      )}
 
       {/* Sidebar Layout */}
       <aside 
@@ -136,6 +158,10 @@ export default function Dashboard({ user, onLogout }) {
         style={{
           ...styles.sidebar,
           transform: sidebarOpen ? 'translateX(0)' : 'translateX(-280px)',
+          position: 'fixed',
+          height: '100vh',
+          left: 0,
+          top: 0,
         }}
       >
         <div style={styles.sidebarHeader}>
@@ -216,9 +242,14 @@ export default function Dashboard({ user, onLogout }) {
       {/* Main Content Area */}
       <main style={{
         ...styles.mainContent,
-        marginLeft: sidebarOpen ? '280px' : '0px',
+        marginLeft: isMobile ? '0px' : (sidebarOpen ? '280px' : '0px'),
+        width: isMobile ? '100%' : (sidebarOpen ? 'calc(100vw - 280px)' : '100%'),
+        paddingTop: isMobile ? '80px' : '40px',
       }}>
-        <div style={styles.contentWrapper}>
+        <div style={{
+          ...styles.contentWrapper,
+          padding: isMobile ? '20px 15px' : '40px',
+        }}>
           {renderActiveComponent()}
         </div>
       </main>

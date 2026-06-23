@@ -306,7 +306,7 @@ export default function Grades({ user }) {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setPreviewFileUrl(`http://localhost:8081/${a.instructionsFilePath}`);
+                                  setPreviewFileUrl(api.getFileUrl(a.instructionsFilePath));
                                   setPreviewFileName(`Indicaciones: ${a.name}`);
                                 }}
                                 className="btn btn-secondary"
@@ -316,10 +316,9 @@ export default function Grades({ user }) {
                                 <Eye size={8} /> Inst.
                               </button>
                               <a
-                                href={`http://localhost:8081/${a.instructionsFilePath}`}
+                                href={api.getFileUrl(a.instructionsFilePath)}
                                 download
-                                target="_blank"
-                                rel="noreferrer"
+                                target="_blank; noreferrer"
                                 className="btn btn-secondary"
                                 style={{ padding: '2px 4px', height: '18px', display: 'inline-flex', alignItems: 'center', color: 'inherit' }}
                                 title="Descargar indicaciones"
@@ -378,7 +377,7 @@ export default function Grades({ user }) {
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      setPreviewFileUrl(`http://localhost:8081/${sub.filePath}`);
+                                      setPreviewFileUrl(api.getFileUrl(sub.filePath));
                                       setPreviewFileName(`Entrega: ${studentName} - ${a.name}`);
                                     }}
                                     className="btn btn-secondary"
@@ -388,10 +387,9 @@ export default function Grades({ user }) {
                                     <Eye size={12} />
                                   </button>
                                   <a
-                                    href={`http://localhost:8081/${sub.filePath}`}
+                                    href={api.getFileUrl(sub.filePath)}
                                     download
-                                    target="_blank"
-                                    rel="noreferrer"
+                                    target="_blank; noreferrer"
                                     className="btn btn-secondary"
                                     style={{ padding: '4px', height: '28px', width: '28px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-light)', color: 'inherit' }}
                                     title="Descargar entrega del alumno"
@@ -632,7 +630,7 @@ export default function Grades({ user }) {
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setPreviewFileUrl(`http://localhost:8081/${a.instructionsFilePath}`);
+                                    setPreviewFileUrl(api.getFileUrl(a.instructionsFilePath));
                                     setPreviewFileName(`Indicaciones: ${a.name}`);
                                   }}
                                   className="btn btn-secondary"
@@ -642,7 +640,7 @@ export default function Grades({ user }) {
                                   <Eye size={10} /> Inst.
                                 </button>
                                 <a
-                                  href={`http://localhost:8081/${a.instructionsFilePath}`}
+                                  href={api.getFileUrl(a.instructionsFilePath)}
                                   download
                                   target="_blank; noreferrer"
                                   className="btn btn-secondary"

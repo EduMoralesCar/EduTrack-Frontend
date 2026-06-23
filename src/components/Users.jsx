@@ -19,6 +19,13 @@ export default function Users({ user }) {
   const [role, setRole] = useState('STUDENT');
   const [isActive, setIsActive] = useState(true);
   const [activeRoleTab, setActiveRoleTab] = useState('STUDENT');
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const filteredUsers = users
     .filter((u) => u.role === activeRoleTab)
@@ -126,12 +133,19 @@ export default function Users({ user }) {
 
   return (
     <div style={styles.container}>
-      <div className="flex-between mb-20">
+      <div style={{
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        justifyContent: 'space-between',
+        alignItems: isMobile ? 'stretch' : 'center',
+        gap: isMobile ? '16px' : '0px',
+        marginBottom: '20px',
+      }}>
         <div>
           <h2 style={styles.pageTitle}>Gestión de Usuarios</h2>
           <p style={styles.pageSubtitle}>Registro y administración de los usuarios del sistema</p>
         </div>
-        <button className="btn btn-primary" onClick={openCreateModal}>
+        <button className="btn btn-primary" onClick={openCreateModal} style={isMobile ? { justifyContent: 'center' } : {}}>
           <UserPlus size={18} />
           <span>Nuevo Usuario</span>
         </button>
@@ -187,33 +201,21 @@ export default function Users({ user }) {
           <span style={{ marginLeft: '12px' }}>Cargando usuarios del sistema...</span>
         </div>
       ) : (
-        <div className="table-container">
-          <table className="custom-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Usuario</th>
-                <th>Email</th>
-                <th>Rol</th>
-                <th>Estado</th>
-                <th style={{ textAlign: 'right' }}>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.length === 0 ? (
-                <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '40px 0', color: 'hsl(var(--text-muted))' }}>
-                    {activeRoleTab === 'STUDENT' ? 'No hay estudiantes registrados.' : activeRoleTab === 'TEACHER' ? 'No hay docentes registrados.' : 'No hay administradores registrados.'}
-                  </td>
-                </tr>
-              ) : (
-                filteredUsers.map((u) => (
-                  <tr key={u.id}>
-                    <td>{u.id}</td>
-                    <td style={{ fontWeight: '600' }}>{u.username}</td>
-                    <td>{u.email}</td>
-                    <td>{getRoleBadge(u.role)}</td>
-                    <td>
+        isMobile ? (
+          <div style={styles.mobileListContainer}>
+            {filteredUsers.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: 'hsl(var(--text-muted))' }}>
+                {activeRoleTab === 'STUDENT' ? 'No hay estudiantes registrados.' : activeRoleTab === 'TEACHER' ? 'No hay docentes registrados.' : 'No hay administradores registrados.'}
+              </div>
+            ) : (
+              filteredUsers.map((u) => (
+                <div key={u.id} className="glass-card" style={styles.mobileCard}>
+                  <div style={styles.mobileCardHeader}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <div style={styles.mobileCardTitle}>{u.username}</div>
+                      <div style={styles.mobileCardSubtitle}>ID: {u.id} • {u.email}</div>
+                    </div>
+                    <div>
                       {u.isActive !== false ? (
                         <span style={styles.statusActive}>
                           <CheckCircle size={14} style={{ marginRight: '4px' }} />
@@ -225,33 +227,101 @@ export default function Users({ user }) {
                           Inactivo
                         </span>
                       )}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={styles.actionContainer}>
+                    </div>
+                  </div>
+                  <div style={styles.mobileCardFooter}>
+                    <div style={styles.actionContainer}>
+                      <button
+                        onClick={() => openEditModal(u)}
+                        style={{ ...styles.editBtn, padding: '8px 12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        title="Editar"
+                      >
+                        <Edit2 size={14} />
+                        <span>Editar</span>
+                      </button>
+                      {u.username !== user.username && (
                         <button
-                          onClick={() => openEditModal(u)}
-                          style={styles.editBtn}
-                          title="Editar"
+                          onClick={() => handleDeleteUser(u.id, u.username)}
+                          style={{ ...styles.deleteBtn, padding: '8px 12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                          title="Eliminar"
                         >
-                          <Edit2 size={16} />
+                          <Trash2 size={14} />
+                          <span>Eliminar</span>
                         </button>
-                        {u.username !== user.username && (
-                          <button
-                            onClick={() => handleDeleteUser(u.id, u.username)}
-                            style={styles.deleteBtn}
-                            title="Eliminar"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        ) : (
+          <div className="table-container">
+            <table className="custom-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Usuario</th>
+                  <th>Email</th>
+                  <th>Rol</th>
+                  <th>Estado</th>
+                  <th style={{ textAlign: 'right' }}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ textAlign: 'center', padding: '40px 0', color: 'hsl(var(--text-muted))' }}>
+                      {activeRoleTab === 'STUDENT' ? 'No hay estudiantes registrados.' : activeRoleTab === 'TEACHER' ? 'No hay docentes registrados.' : 'No hay administradores registrados.'}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  filteredUsers.map((u) => (
+                    <tr key={u.id}>
+                      <td>{u.id}</td>
+                      <td style={{ fontWeight: '600' }}>{u.username}</td>
+                      <td>{u.email}</td>
+                      <td>{getRoleBadge(u.role)}</td>
+                      <td>
+                        {u.isActive !== false ? (
+                          <span style={styles.statusActive}>
+                            <CheckCircle size={14} style={{ marginRight: '4px' }} />
+                            Activo
+                          </span>
+                        ) : (
+                          <span style={styles.statusInactive}>
+                            <XCircle size={14} style={{ marginRight: '4px' }} />
+                            Inactivo
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={styles.actionContainer}>
+                          <button
+                            onClick={() => openEditModal(u)}
+                            style={styles.editBtn}
+                            title="Editar"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          {u.username !== user.username && (
+                            <button
+                              onClick={() => handleDeleteUser(u.id, u.username)}
+                              style={styles.deleteBtn}
+                              title="Eliminar"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )
       )}
 
       {/* Modal Dialog */}
@@ -357,11 +427,16 @@ const styles = {
     gap: '8px',
     marginBottom: '25px',
     borderBottom: '1px solid var(--border-light)',
+    overflowX: 'auto',
+    whiteSpace: 'nowrap',
+    paddingBottom: '2px',
   },
   tabButton: {
     background: 'transparent',
     border: 'none',
-    borderBottom: '3px solid transparent',
+    borderBottomStyle: 'solid',
+    borderBottomWidth: '3px',
+    borderBottomColor: 'transparent',
     padding: '12px 20px',
     color: 'hsl(var(--text-muted))',
     fontFamily: 'var(--font-heading)',
@@ -374,6 +449,43 @@ const styles = {
   activeTabButton: {
     color: 'hsl(var(--primary-hover))',
     borderBottomColor: 'hsl(263, 90%, 51%)',
+  },
+  mobileListContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    width: '100%',
+  },
+  mobileCard: {
+    padding: '16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    border: '1px solid var(--border-light)',
+  },
+  mobileCardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: '10px',
+  },
+  mobileCardTitle: {
+    fontSize: '1rem',
+    fontWeight: '600',
+    color: '#fff',
+    fontFamily: 'var(--font-heading)',
+  },
+  mobileCardSubtitle: {
+    fontSize: '0.8rem',
+    color: 'hsl(var(--text-muted))',
+    marginTop: '2px',
+  },
+  mobileCardFooter: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    borderTop: '1px solid rgba(255,255,255,0.03)',
+    paddingTop: '10px',
+    marginTop: '4px',
   },
   pageTitle: {
     fontFamily: 'var(--font-heading)',
@@ -453,10 +565,11 @@ const styles = {
     backdropFilter: 'blur(8px)',
   },
   modalContent: {
-    width: '100%',
+    width: '90%',
     maxWidth: '500px',
     border: '1px solid rgba(255,255,255,0.12)',
     animation: 'slideIn 0.3s ease',
+    boxSizing: 'border-box',
   },
   modalHeader: {
     borderBottom: '1px solid var(--border-light)',
