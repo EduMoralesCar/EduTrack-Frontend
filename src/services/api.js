@@ -8,7 +8,7 @@ export const getBaseUrl = () => {
     return envUrl.endsWith('/') ? `${envUrl}api` : `${envUrl}/api`;
   }
   if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && window.location.hostname !== '') {
-    const prodDefault = 'https://nuevaschool-backend.onrender.com';
+    const prodDefault = 'https://edutrack-backend-1nvs.onrender.com';
     return `${prodDefault}/api`;
   }
   return 'http://localhost:8081/api';
@@ -28,7 +28,7 @@ export const getFileUrl = (filePath) => {
     if (envUrl) {
       base = envUrl.endsWith('/') ? envUrl : `${envUrl}/`;
     } else if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && window.location.hostname !== '') {
-      base = 'https://nuevaschool-backend.onrender.com/';
+      base = 'https://edutrack-backend-1nvs.onrender.com/';
     }
   }
   return `${base}${filePath}`;
