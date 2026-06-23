@@ -3,8 +3,13 @@ export const getBaseUrl = () => {
   if (customUrl) {
     return customUrl.endsWith('/') ? `${customUrl}api` : `${customUrl}/api`;
   }
-  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    return `${window.location.protocol}//${window.location.host}/api`;
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl) {
+    return envUrl.endsWith('/') ? `${envUrl}api` : `${envUrl}/api`;
+  }
+  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && window.location.hostname !== '') {
+    const prodDefault = 'https://nuevaschool-backend.onrender.com';
+    return `${prodDefault}/api`;
   }
   return 'http://localhost:8081/api';
 };
@@ -18,8 +23,13 @@ export const getFileUrl = (filePath) => {
   let base = 'http://localhost:8081/';
   if (customUrl) {
     base = customUrl.endsWith('/') ? customUrl : `${customUrl}/`;
-  } else if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    base = `${window.location.protocol}//${window.location.host}/`;
+  } else {
+    const envUrl = import.meta.env.VITE_API_URL;
+    if (envUrl) {
+      base = envUrl.endsWith('/') ? envUrl : `${envUrl}/`;
+    } else if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && window.location.hostname !== '') {
+      base = 'https://nuevaschool-backend.onrender.com/';
+    }
   }
   return `${base}${filePath}`;
 };
