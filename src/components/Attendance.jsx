@@ -16,6 +16,13 @@ export default function Attendance({ user }) {
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [selectedStudentFilter, setSelectedStudentFilter] = useState(''); // Student filter for teachers
   const [notification, setNotification] = useState({ message: '', type: '' });
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
@@ -147,6 +154,21 @@ export default function Attendance({ user }) {
     return `${formatDayMonth(start)} al ${formatDayMonth(end)} de 2026`;
   };
 
+  const getWeekRangeStringMobile = (startDate, weekNum) => {
+    const start = new Date(startDate);
+    start.setDate(startDate.getDate() + (weekNum - 1) * 7);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+
+    const formatDayMonthNum = (d) => {
+      const day = d.getDate();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      return `${day}/${month}`;
+    };
+
+    return `${formatDayMonthNum(start)} al ${formatDayMonthNum(end)}`;
+  };
+
   const getStatusForWeek = (studentId, weekNum) => {
     const start = getSemesterStartDate(selectedPeriod);
     const mondayStr = getMondayDateString(start, weekNum);
@@ -216,19 +238,32 @@ export default function Attendance({ user }) {
     const stats = getAttendanceStats(studentId);
 
     return (
-      <div className="glass-card mt-20" style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-light)', padding: '24px' }}>
-        <div className="flex-between mb-20" style={{ flexWrap: 'wrap', gap: '15px' }}>
+      <div className="glass-card mt-20" style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-light)', padding: isMobile ? '16px' : '24px' }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'stretch' : 'center',
+          justifyContent: 'space-between',
+          gap: '15px',
+          marginBottom: '20px'
+        }}>
           <div>
-            <h4 style={{ fontFamily: 'var(--font-heading)', color: '#fff', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <CalendarCheck size={20} style={{ color: 'hsl(var(--primary))' }} />
-              <span>Cronograma de Asistencia (18 Semanas): {studentName}</span>
+            <h4 style={{ fontFamily: 'var(--font-heading)', color: '#fff', fontSize: isMobile ? '1.05rem' : '1.2rem', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+              <CalendarCheck size={20} style={{ color: 'hsl(var(--primary))', flexShrink: 0, marginTop: '2px' }} />
+              <span>Cronograma de Asistencia ({isMobile ? '18 Sem' : '18 Semanas'}): {studentName}</span>
             </h4>
-            <p style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', marginTop: '2px' }}>
+            <p style={{ fontSize: '0.82rem', color: 'hsl(var(--text-secondary))', marginTop: '2px' }}>
               Récord histórico y desglose semanal detallado de asistencia.
             </p>
           </div>
           
-          <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-light)', padding: '10px 18px', borderRadius: '10px', textAlign: 'right' }}>
+          <div style={{ 
+            background: 'rgba(255,255,255,0.02)', 
+            border: '1px solid var(--border-light)', 
+            padding: '10px 18px', 
+            borderRadius: '10px', 
+            textAlign: isMobile ? 'center' : 'right' 
+          }}>
             <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-secondary))', display: 'block', fontWeight: '500' }}>
               Tasa de Asistencia
             </span>
@@ -251,7 +286,7 @@ export default function Attendance({ user }) {
           <table className="custom-table">
             <thead>
               <tr>
-                <th style={{ width: '120px' }}>Semana</th>
+                <th style={{ width: isMobile ? '80px' : '120px' }}>{isMobile ? 'Sem.' : 'Semana'}</th>
                 <th>Rango de Fechas</th>
                 <th style={{ width: '150px', textAlign: 'center' }}>Estado de Asistencia</th>
                 {user.role === 'TEACHER' && <th style={{ width: '220px', textAlign: 'center' }}>Registrar / Modificar</th>}
@@ -260,12 +295,12 @@ export default function Attendance({ user }) {
             <tbody>
               {Array.from({ length: 18 }).map((_, i) => {
                 const weekNum = i + 1;
-                const weekRange = getWeekRangeString(start, weekNum);
+                const weekRange = isMobile ? getWeekRangeStringMobile(start, weekNum) : getWeekRangeString(start, weekNum);
                 const status = getStatusForWeek(studentId, weekNum);
                 
                 return (
                   <tr key={weekNum}>
-                    <td style={{ fontWeight: '600' }}>Semana {weekNum}</td>
+                    <td style={{ fontWeight: '600' }}>{isMobile ? `Sem. ${weekNum}` : `Semana ${weekNum}`}</td>
                     <td style={{ color: 'hsl(var(--text-secondary))', fontSize: '0.9rem' }}>{weekRange}</td>
                     <td style={{ textAlign: 'center' }}>
                       {status === 'PRESENTE' && <span className="badge" style={{ background: 'hsla(142, 71%, 45%, 0.12)', border: '1px solid hsla(142, 71%, 45%, 0.25)', color: 'hsl(142 80% 80%)' }}>Presente</span>}
@@ -299,7 +334,7 @@ export default function Attendance({ user }) {
     : (selectedStudentFilter !== '' ? selectedStudentFilter : null);
 
   return (
-    <div className="glass-card fade-in" style={{ padding: '30px', border: '1px solid var(--border-light)', borderRadius: '16px' }}>
+    <div className="glass-card fade-in" style={{ padding: isMobile ? '20px 12px' : '30px', border: '1px solid var(--border-light)', borderRadius: '16px' }}>
       {/* Toast Notification Banner (Positioned top-right to prevent header overlapping) */}
       {notification.message && (
         <div 
@@ -321,14 +356,23 @@ export default function Attendance({ user }) {
       )}
 
       {/* Header section */}
-      <div className="flex-between mb-20" style={{ borderBottom: '1px solid var(--border-light)', paddingBottom: '20px' }}>
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: isMobile ? 'column' : 'row',
+        alignItems: isMobile ? 'stretch' : 'center',
+        justifyContent: 'space-between',
+        borderBottom: '1px solid var(--border-light)', 
+        paddingBottom: '20px',
+        marginBottom: '20px',
+        gap: '12px'
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <CalendarCheck size={28} style={{ color: 'hsl(var(--primary))' }} />
+          <CalendarCheck size={28} style={{ color: 'hsl(var(--primary))', flexShrink: 0 }} />
           <div>
-            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.75rem', fontWeight: '700', color: '#fff', margin: 0 }}>
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: isMobile ? '1.4rem' : '1.75rem', fontWeight: '700', color: '#fff', margin: 0 }}>
               Control de Asistencia UTP
             </h2>
-            <p style={{ fontSize: '0.9rem', color: 'hsl(var(--text-secondary))', marginTop: '2px' }}>
+            <p style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', marginTop: '2px' }}>
               Gestión académica del registro de puntualidad y asistencia estudiantil.
             </p>
           </div>

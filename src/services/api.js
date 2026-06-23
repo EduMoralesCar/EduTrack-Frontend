@@ -1,4 +1,28 @@
-const BASE_URL = 'http://localhost:8081/api';
+export const getBaseUrl = () => {
+  const customUrl = localStorage.getItem('edutrack_backend_url');
+  if (customUrl) {
+    return customUrl.endsWith('/') ? `${customUrl}api` : `${customUrl}/api`;
+  }
+  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return `${window.location.protocol}//${window.location.host}/api`;
+  }
+  return 'http://localhost:8081/api';
+};
+
+export const getFileUrl = (filePath) => {
+  if (!filePath) return '';
+  if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+    return filePath;
+  }
+  const customUrl = localStorage.getItem('edutrack_backend_url');
+  let base = 'http://localhost:8081/';
+  if (customUrl) {
+    base = customUrl.endsWith('/') ? customUrl : `${customUrl}/`;
+  } else if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    base = `${window.location.protocol}//${window.location.host}/`;
+  }
+  return `${base}${filePath}`;
+};
 
 // Helper to get token
 const getToken = () => localStorage.getItem('edutrack_token');
@@ -56,11 +80,12 @@ const request = async (endpoint, options = {}) => {
     headers,
   };
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, config);
+  const response = await fetch(`${getBaseUrl()}${endpoint}`, config);
   return handleResponse(response);
 };
 
 export const api = {
+  getFileUrl,
   auth: {
     login: async (username, password) => {
       const data = await request('/auth/login', {

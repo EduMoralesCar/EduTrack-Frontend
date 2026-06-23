@@ -7,6 +7,13 @@ export default function Enrollments({ user }) {
   const [selectedSectionId, setSelectedSectionId] = useState('');
   const [enrollments, setEnrollments] = useState([]);
   const [students, setStudents] = useState([]);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   const [loading, setLoading] = useState(false);
   const [sectionsLoading, setSectionsLoading] = useState(true);
@@ -153,13 +160,20 @@ export default function Enrollments({ user }) {
 
   return (
     <div style={styles.container}>
-      <div className="flex-between mb-20">
+      <div style={{
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        alignItems: isMobile ? 'stretch' : 'center',
+        justifyContent: 'space-between',
+        gap: isMobile ? '16px' : '0px',
+        marginBottom: '20px',
+      }}>
         <div>
           <h2 style={styles.pageTitle}>Control de Matrículas</h2>
           <p style={styles.pageSubtitle}>Listado de alumnos matriculados y control de ingresos por sección</p>
         </div>
         {isAdmin && sections.length > 0 && (
-          <button className="btn btn-primary" onClick={openEnrollModal}>
+          <button className="btn btn-primary" onClick={openEnrollModal} style={isMobile ? { justifyContent: 'center' } : {}}>
             <Plus size={18} />
             <span>Matricular Estudiante</span>
           </button>
@@ -182,8 +196,13 @@ export default function Enrollments({ user }) {
 
       {/* Section Selection Bar */}
       <div className="glass-card" style={styles.filterCard}>
-        <div style={styles.filterGroup}>
-          <label className="form-label" style={{ marginBottom: 0, marginRight: '12px' }}>
+        <div style={{
+          ...styles.filterGroup,
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'stretch' : 'center',
+          gap: isMobile ? '8px' : '12px',
+        }}>
+          <label className="form-label" style={{ marginBottom: 0, marginRight: isMobile ? '0px' : '12px' }}>
             Seleccionar Sección:
           </label>
           {sectionsLoading ? (
@@ -193,7 +212,10 @@ export default function Enrollments({ user }) {
               className="form-input form-select"
               value={selectedSectionId}
               onChange={handleSectionChange}
-              style={styles.selectFilter}
+              style={{
+                ...styles.selectFilter,
+                maxWidth: isMobile ? '100%' : '450px',
+              }}
             >
               {sections.length === 0 ? (
                 <option value="">-- No hay secciones disponibles --</option>
@@ -223,63 +245,109 @@ export default function Enrollments({ user }) {
         </div>
       ) : (
         <div style={styles.rosterSection}>
-          <div style={styles.rosterHeader}>
-            <GraduationCap size={20} color="hsl(263, 90%, 60%)" />
-            <h3 style={styles.rosterTitle}>{getSelectedSectionDetails()}</h3>
-            <span className="badge badge-student" style={styles.rosterCount}>
+          <div style={{
+            ...styles.rosterHeader,
+            flexDirection: isMobile ? 'column' : 'row',
+            alignItems: isMobile ? 'flex-start' : 'center',
+            gap: isMobile ? '8px' : '12px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <GraduationCap size={20} color="hsl(263, 90%, 60%)" style={{ flexShrink: 0 }} />
+              <h3 style={{ ...styles.rosterTitle, fontSize: isMobile ? '1.1rem' : '1.25rem' }}>{getSelectedSectionDetails()}</h3>
+            </div>
+            <span className="badge badge-student" style={{ ...styles.rosterCount, marginLeft: isMobile ? '0px' : 'auto' }}>
               {enrollments.length} {enrollments.length === 1 ? 'Alumno' : 'Alumnos'}
             </span>
           </div>
 
-          <div className="table-container">
-            <table className="custom-table">
-              <thead>
-                <tr>
-                  <th>ID Matrícula</th>
-                  <th>ID Alumno</th>
-                  <th>Nombre del Estudiante</th>
-                  <th>Estado Matrícula</th>
-                  {isAdmin && <th style={{ textAlign: 'right' }}>Acciones</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {enrollments.length === 0 ? (
-                  <tr>
-                    <td colSpan={isAdmin ? 5 : 4} style={{ textAlign: 'center', padding: '40px 0', color: 'hsl(var(--text-muted))' }}>
-                      No hay estudiantes matriculados en esta sección académica.
-                    </td>
-                  </tr>
-                ) : (
-                  enrollments.map((enr) => (
-                    <tr key={enr.id}>
-                      <td>#{enr.id}</td>
-                      <td>ID-{enr.studentId}</td>
-                      <td style={{ fontWeight: '600' }}>{enr.studentUsername}</td>
-                      <td>
+          {isMobile ? (
+            <div style={styles.mobileListContainer}>
+              {enrollments.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: 'hsl(var(--text-muted))' }}>
+                  No hay estudiantes matriculados en esta sección académica.
+                </div>
+              ) : (
+                enrollments.map((enr) => (
+                  <div key={enr.id} className="glass-card" style={styles.mobileCard}>
+                    <div style={styles.mobileCardHeader}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <div style={styles.mobileCardTitle}>{enr.studentUsername}</div>
+                        <div style={styles.mobileCardSubtitle}>Matrícula: #{enr.id} • Alumno: ID-{enr.studentId}</div>
+                      </div>
+                      <div>
                         <span style={styles.enrolledStatus}>
-                          <CheckCircle size={14} style={{ marginRight: '4px' }} />
+                          <CheckCircle size={13} style={{ marginRight: '4px', verticalAlign: 'middle', display: 'inline' }} />
                           {enr.status || 'ENROLLED'}
                         </span>
+                      </div>
+                    </div>
+                    {isAdmin && (
+                      <div style={styles.mobileCardFooter}>
+                        <button
+                          onClick={() => handleUnenroll(enr.id, enr.studentUsername)}
+                          className="btn btn-danger"
+                          style={{ padding: '8px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', width: '100%', justifyContent: 'center', color: '#fff' }}
+                        >
+                          <Trash2 size={14} />
+                          <span>Dar de Baja / Retirar</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          ) : (
+            <div className="table-container">
+              <table className="custom-table">
+                <thead>
+                  <tr>
+                    <th>ID Matrícula</th>
+                    <th>ID Alumno</th>
+                    <th>Nombre del Estudiante</th>
+                    <th>Estado Matrícula</th>
+                    {isAdmin && <th style={{ textAlign: 'right' }}>Acciones</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {enrollments.length === 0 ? (
+                    <tr>
+                      <td colSpan={isAdmin ? 5 : 4} style={{ textAlign: 'center', padding: '40px 0', color: 'hsl(var(--text-muted))' }}>
+                        No hay estudiantes matriculados en esta sección académica.
                       </td>
-                      {isAdmin && (
-                        <td style={{ textAlign: 'right' }}>
-                          <button
-                            onClick={() => handleUnenroll(enr.id, enr.studentUsername)}
-                            className="btn btn-danger"
-                            style={styles.unenrollBtn}
-                            title="Anular Matrícula"
-                          >
-                            <Trash2 size={14} />
-                            <span>Dar de Baja</span>
-                          </button>
-                        </td>
-                      )}
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ) : (
+                    enrollments.map((enr) => (
+                      <tr key={enr.id}>
+                        <td>#{enr.id}</td>
+                        <td>ID-{enr.studentId}</td>
+                        <td style={{ fontWeight: '600' }}>{enr.studentUsername}</td>
+                        <td>
+                          <span style={styles.enrolledStatus}>
+                            <CheckCircle size={14} style={{ marginRight: '4px' }} />
+                            {enr.status || 'ENROLLED'}
+                          </span>
+                        </td>
+                        {isAdmin && (
+                          <td style={{ textAlign: 'right' }}>
+                            <button
+                              onClick={() => handleUnenroll(enr.id, enr.studentUsername)}
+                              className="btn btn-danger"
+                              style={styles.unenrollBtn}
+                              title="Anular Matrícula"
+                            >
+                              <Trash2 size={14} />
+                              <span>Dar de Baja</span>
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -432,10 +500,48 @@ const styles = {
     backdropFilter: 'blur(8px)',
   },
   modalContent: {
-    width: '100%',
+    width: '90%',
     maxWidth: '480px',
     border: '1px solid rgba(255,255,255,0.12)',
     animation: 'slideIn 0.3s ease',
+    boxSizing: 'border-box',
+  },
+  mobileListContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    width: '100%',
+  },
+  mobileCard: {
+    padding: '16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    border: '1px solid var(--border-light)',
+  },
+  mobileCardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: '10px',
+  },
+  mobileCardTitle: {
+    fontSize: '1rem',
+    fontWeight: '600',
+    color: '#fff',
+    fontFamily: 'var(--font-heading)',
+  },
+  mobileCardSubtitle: {
+    fontSize: '0.8rem',
+    color: 'hsl(var(--text-muted))',
+    marginTop: '2px',
+  },
+  mobileCardFooter: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    borderTop: '1px solid rgba(255,255,255,0.03)',
+    paddingTop: '10px',
+    marginTop: '4px',
   },
   modalHeader: {
     borderBottom: '1px solid var(--border-light)',

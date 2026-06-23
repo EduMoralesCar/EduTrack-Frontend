@@ -6,6 +6,13 @@ export default function Sections({ user }) {
   const [sections, setSections] = useState([]);
   const [courses, setCourses] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -166,7 +173,14 @@ export default function Sections({ user }) {
 
   return (
     <div style={styles.container}>
-      <div className="flex-between mb-20">
+      <div style={{
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        alignItems: isMobile ? 'stretch' : 'center',
+        justifyContent: 'space-between',
+        gap: isMobile ? '16px' : '0px',
+        marginBottom: '20px',
+      }}>
         <div>
           <h2 style={styles.pageTitle}>
             {isAdmin ? 'Gestión de Secciones' : isTeacher ? 'Mis Secciones a Cargo' : 'Secciones Académicas'}
@@ -174,7 +188,7 @@ export default function Sections({ user }) {
           <p style={styles.pageSubtitle}>Administración y organización de clases por periodo académico y docente</p>
         </div>
         {isAdmin && (
-          <button className="btn btn-primary" onClick={openCreateSectionModal}>
+          <button className="btn btn-primary" onClick={openCreateSectionModal} style={isMobile ? { justifyContent: 'center' } : {}}>
             <Plus size={18} />
             <span>Nueva Sección</span>
           </button>
@@ -201,86 +215,158 @@ export default function Sections({ user }) {
           <span style={{ marginLeft: '12px' }}>Cargando secciones académicas...</span>
         </div>
       ) : (
-        <div className="table-container">
-          <table className="custom-table">
-            <thead>
-              <tr>
-                <th>Sección</th>
-                <th>Curso</th>
-                <th>Código Curso</th>
-                <th>Docente Asignado</th>
-                <th>Periodo</th>
-                {isAdmin && <th style={{ textAlign: 'right' }}>Acciones</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {filteredSections.length === 0 ? (
-                <tr>
-                  <td colSpan={isAdmin ? 6 : 5} style={{ textAlign: 'center', padding: '40px 0', color: 'hsl(var(--text-muted))' }}>
-                    {isTeacher 
-                      ? 'No tiene secciones asignadas para este periodo.' 
-                      : isStudent 
-                        ? 'No se encuentra matriculado en ninguna sección para este periodo.' 
-                        : 'No hay secciones creadas en el sistema.'}
-                  </td>
-                </tr>
-              ) : (
-                filteredSections.map((sec) => (
-                  <tr key={sec.id}>
-                    <td style={{ fontWeight: '600', color: 'hsl(var(--primary-hover))' }}>Sección {sec.code}</td>
-                    <td style={{ fontWeight: '500' }}>{sec.courseName}</td>
-                    <td><span style={styles.codeTag}>{sec.courseCode}</span></td>
-                    <td>
-                      {sec.teacherUsername ? (
-                        <span style={styles.teacherSpan}>
-                          <User size={14} style={{ marginRight: '6px' }} />
-                          {sec.teacherUsername}
-                        </span>
-                      ) : (
-                        <span style={styles.noTeacherSpan}>Sin Docente Asignado</span>
-                      )}
-                    </td>
-                    <td>
+        isMobile ? (
+          <div style={styles.mobileListContainer}>
+            {filteredSections.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: 'hsl(var(--text-muted))' }}>
+                {isTeacher 
+                  ? 'No tiene secciones asignadas para este periodo.' 
+                  : isStudent 
+                    ? 'No se encuentra matriculado en ninguna sección para este periodo.' 
+                    : 'No hay secciones creadas en el sistema.'}
+              </div>
+            ) : (
+              filteredSections.map((sec) => (
+                <div key={sec.id} className="glass-card" style={styles.mobileCard}>
+                  <div style={styles.mobileCardHeader}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexGrow: 1 }}>
+                      <div style={styles.mobileCardTitle}>{sec.courseName}</div>
+                      <div style={styles.mobileCardSubtitle}>Sección {sec.code} • <span style={styles.codeTag}>{sec.courseCode}</span></div>
+                    </div>
+                    <div>
                       <span style={styles.periodTag}>
-                        <Clock size={12} style={{ marginRight: '4px' }} />
+                        <Clock size={11} style={{ marginRight: '4px' }} />
                         {sec.period}
                       </span>
-                    </td>
-                    {isAdmin && (
-                      <td style={{ textAlign: 'right' }}>
-                        <div style={styles.actionContainer}>
-                          <button
-                            onClick={() => openAssignTeacherModal(sec.id, sec.teacherId)}
-                            className="btn btn-secondary"
-                            style={styles.actionBtn}
-                            title="Asignar Docente"
-                          >
-                            <UserPlus size={14} />
-                            <span>Asignar</span>
-                          </button>
-                          <button
-                            onClick={() => openEditSectionModal(sec)}
-                            style={styles.editBtn}
-                            title="Editar"
-                          >
-                            <Edit2 size={15} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteSection(sec.id, sec.code, sec.courseName)}
-                            style={styles.deleteBtn}
-                            title="Eliminar"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </td>
+                    </div>
+                  </div>
+                  
+                  <div style={{ marginTop: '4px' }}>
+                    <span style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))' }}>Docente: </span>
+                    {sec.teacherUsername ? (
+                      <span style={styles.teacherSpan}>
+                        <User size={13} style={{ marginRight: '4px', verticalAlign: 'middle', display: 'inline' }} />
+                        {sec.teacherUsername}
+                      </span>
+                    ) : (
+                      <span style={styles.noTeacherSpan}>Sin asignar</span>
                     )}
+                  </div>
+
+                  {isAdmin && (
+                    <div style={styles.mobileCardFooter}>
+                      <div style={styles.actionContainerMobile}>
+                        <button
+                          onClick={() => openAssignTeacherModal(sec.id, sec.teacherId)}
+                          className="btn btn-secondary"
+                          style={{ padding: '8px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', flex: 1, justifyContent: 'center' }}
+                        >
+                          <UserPlus size={14} />
+                          <span>Asignar</span>
+                        </button>
+                        <button
+                          onClick={() => openEditSectionModal(sec)}
+                          className="btn btn-secondary"
+                          style={{ padding: '8px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSection(sec.id, sec.code, sec.courseName)}
+                          className="btn"
+                          style={{ padding: '8px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: 'rgba(231, 76, 60, 0.15)', border: '1px solid rgba(231, 76, 60, 0.3)', color: '#e74c3c', justifyContent: 'center' }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        ) : (
+          <div className="table-container">
+            <table className="custom-table">
+              <thead>
+                <tr>
+                  <th>Sección</th>
+                  <th>Curso</th>
+                  <th>Código Curso</th>
+                  <th>Docente Asignado</th>
+                  <th>Periodo</th>
+                  {isAdmin && <th style={{ textAlign: 'right' }}>Acciones</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSections.length === 0 ? (
+                  <tr>
+                    <td colSpan={isAdmin ? 6 : 5} style={{ textAlign: 'center', padding: '40px 0', color: 'hsl(var(--text-muted))' }}>
+                      {isTeacher 
+                        ? 'No tiene secciones asignadas para este periodo.' 
+                        : isStudent 
+                          ? 'No se encuentra matriculado en ninguna sección para este periodo.' 
+                          : 'No hay secciones creadas en el sistema.'}
+                    </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  filteredSections.map((sec) => (
+                    <tr key={sec.id}>
+                      <td style={{ fontWeight: '600', color: 'hsl(var(--primary-hover))' }}>Sección {sec.code}</td>
+                      <td style={{ fontWeight: '500' }}>{sec.courseName}</td>
+                      <td><span style={styles.codeTag}>{sec.courseCode}</span></td>
+                      <td>
+                        {sec.teacherUsername ? (
+                          <span style={styles.teacherSpan}>
+                            <User size={14} style={{ marginRight: '6px' }} />
+                            {sec.teacherUsername}
+                          </span>
+                        ) : (
+                          <span style={styles.noTeacherSpan}>Sin Docente Asignado</span>
+                        )}
+                      </td>
+                      <td>
+                        <span style={styles.periodTag}>
+                          <Clock size={12} style={{ marginRight: '4px' }} />
+                          {sec.period}
+                        </span>
+                      </td>
+                      {isAdmin && (
+                        <td style={{ textAlign: 'right' }}>
+                          <div style={styles.actionContainer}>
+                            <button
+                              onClick={() => openAssignTeacherModal(sec.id, sec.teacherId)}
+                              className="btn btn-secondary"
+                              style={styles.actionBtn}
+                              title="Asignar Docente"
+                            >
+                              <UserPlus size={14} />
+                              <span>Asignar</span>
+                            </button>
+                            <button
+                              onClick={() => openEditSectionModal(sec)}
+                              style={styles.editBtn}
+                              title="Editar"
+                            >
+                              <Edit2 size={15} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteSection(sec.id, sec.code, sec.courseName)}
+                              style={styles.deleteBtn}
+                              title="Eliminar"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )
       )}
 
       {/* Admin Section Modal Dialog */}
@@ -479,10 +565,53 @@ const styles = {
     backdropFilter: 'blur(8px)',
   },
   modalContent: {
-    width: '100%',
+    width: '90%',
     maxWidth: '480px',
     border: '1px solid rgba(255,255,255,0.12)',
     animation: 'slideIn 0.3s ease',
+    boxSizing: 'border-box',
+  },
+  mobileListContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    width: '100%',
+  },
+  mobileCard: {
+    padding: '16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    border: '1px solid var(--border-light)',
+  },
+  mobileCardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: '10px',
+  },
+  mobileCardTitle: {
+    fontSize: '1rem',
+    fontWeight: '600',
+    color: '#fff',
+    fontFamily: 'var(--font-heading)',
+  },
+  mobileCardSubtitle: {
+    fontSize: '0.8rem',
+    color: 'hsl(var(--text-muted))',
+    marginTop: '2px',
+  },
+  mobileCardFooter: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    borderTop: '1px solid rgba(255,255,255,0.03)',
+    paddingTop: '10px',
+    marginTop: '4px',
+  },
+  actionContainerMobile: {
+    display: 'flex',
+    gap: '8px',
+    width: '100%',
   },
   modalHeader: {
     borderBottom: '1px solid var(--border-light)',

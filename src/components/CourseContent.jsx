@@ -19,6 +19,13 @@ import {
 
 export default function CourseContent({ user, preSelectedSectionId = null, onBack = null }) {
   const [sections, setSections] = useState([]);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const [selectedSection, setSelectedSection] = useState(preSelectedSectionId || '');
   const [materials, setMaterials] = useState([]);
   const [assignments, setAssignments] = useState([]);
@@ -292,8 +299,15 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
         {/* Accordion header */}
         <div 
           onClick={() => toggleWeek(weekNumber)} 
-          style={styles.weekHeader}
-          className="flex-between"
+          style={{
+            ...styles.weekHeader,
+            display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
+            alignItems: isMobile ? 'flex-start' : 'center',
+            justifyContent: 'space-between',
+            gap: isMobile ? '10px' : '0px',
+            padding: isMobile ? '12px 16px' : '16px 20px',
+          }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {isExpanded ? (
@@ -303,12 +317,12 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
             )}
             <span style={{ fontSize: '1.05rem', fontWeight: '600' }}>Semana {weekNumber}</span>
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <span className="badge" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-light)', color: 'hsl(var(--text-secondary))' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <span className="badge" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-light)', color: 'hsl(var(--text-secondary))', fontSize: '0.7rem', padding: '2px 8px' }}>
               {displayedMaterials.length} {displayedMaterials.length === 1 ? 'Material' : 'Materiales'}
             </span>
-            <span className="badge" style={{ background: 'hsla(263, 90%, 51%, 0.1)', border: '1px solid hsla(263, 90%, 51%, 0.2)', color: 'hsl(263 100% 80%)' }}>
-              {weekAssignments.length} {weekAssignments.length === 1 ? 'Evaluación' : 'Evaluaciones'}
+            <span className="badge" style={{ background: 'hsla(263, 90%, 51%, 0.1)', border: '1px solid hsla(263, 90%, 51%, 0.2)', color: 'hsl(263 100% 80%)', fontSize: '0.7rem', padding: '2px 8px' }}>
+              {weekAssignments.length} {isMobile ? (weekAssignments.length === 1 ? 'Eval' : 'Evals') : (weekAssignments.length === 1 ? 'Evaluación' : 'Evaluaciones')}
             </span>
           </div>
         </div>
@@ -344,34 +358,57 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
               ) : (
                 <div style={styles.materialsList}>
                   {displayedMaterials.map(m => (
-                    <div key={m.id} style={styles.materialItem} className="flex-between">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div 
+                      key={m.id} 
+                      style={{
+                        ...styles.materialItem,
+                        display: 'flex',
+                        flexDirection: isMobile ? 'column' : 'row',
+                        alignItems: isMobile ? 'stretch' : 'center',
+                        justifyContent: 'space-between',
+                        gap: isMobile ? '12px' : '8px',
+                        padding: isMobile ? '14px' : '10px 16px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <a 
-                          href={`http://localhost:8081/${m.filePath}`} 
+                          href={api.getFileUrl(m.filePath)} 
                           target="_blank" 
                           rel="noreferrer" 
                           style={{
                             ...styles.materialLink,
-                            opacity: m.visible ? 1 : 0.6
+                            opacity: m.visible ? 1 : 0.6,
+                            lineHeight: '1.3',
                           }}
                         >
-                          <FileText size={14} style={{ marginRight: '8px' }} />
-                          {m.title}
+                          <FileText size={16} style={{ marginRight: '8px', flexShrink: 0 }} />
+                          <span style={{ wordBreak: 'break-word' }}>{m.title}</span>
                         </a>
                         {!m.visible && user.role === 'TEACHER' && (
-                          <span className="badge" style={{ fontSize: '0.65rem', background: 'rgba(255,255,255,0.05)', color: 'hsl(var(--text-muted))', textTransform: 'none', border: '1px solid var(--border-light)' }}>Oculto para Alumnos</span>
+                          <span className="badge" style={{ fontSize: '0.65rem', background: 'rgba(255,255,255,0.05)', color: 'hsl(var(--text-muted))', textTransform: 'none', border: '1px solid var(--border-light)', marginLeft: isMobile ? '0px' : '8px' }}>Oculto para Alumnos</span>
                         )}
                       </div>
 
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
+                      <div 
+                        style={{ 
+                          display: 'flex', 
+                          gap: '8px', 
+                          alignItems: 'center',
+                          justifyContent: isMobile ? 'flex-end' : 'flex-start',
+                          marginTop: isMobile ? '4px' : '0px',
+                          borderTop: isMobile ? '1px solid rgba(255,255,255,0.02)' : 'none',
+                          paddingTop: isMobile ? '10px' : '0px',
+                        }} 
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {/* Premium Inline Preview Button */}
                         <button
                           onClick={() => {
-                            setPreviewFileUrl(`http://localhost:8081/${m.filePath}`);
+                            setPreviewFileUrl(api.getFileUrl(m.filePath));
                             setPreviewFileName(m.title);
                           }}
                           className="btn btn-secondary"
-                          style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px', flexGrow: isMobile ? 1 : 0, justifyContent: 'center' }}
                           title="Vista previa del documento"
                         >
                           <Eye size={13} />
@@ -379,12 +416,12 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                         </button>
 
                         <a 
-                          href={`http://localhost:8081/${m.filePath}`} 
+                          href={api.getFileUrl(m.filePath)} 
                           download
                           target="_blank" 
                           rel="noreferrer" 
                           className="btn btn-secondary"
-                          style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', color: 'inherit' }}
+                          style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', color: 'inherit', flexGrow: isMobile ? 1 : 0, justifyContent: 'center' }}
                           title="Descargar material"
                         >
                           <Download size={13} />
@@ -438,17 +475,17 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                     name="title" 
                     placeholder="Título del material (ej. Diapositivas S3)" 
                     className="form-input" 
-                    style={{ flex: 2 }} 
+                    style={{ flex: isMobile ? '1 1 100%' : '2' }} 
                     required 
                   />
                   <input 
                     type="file" 
                     name="file" 
                     className="form-input" 
-                    style={{ flex: 2, padding: '8px 12px' }} 
+                    style={{ flex: isMobile ? '1 1 100%' : '2', padding: '8px 12px' }} 
                     required 
                   />
-                  <button type="submit" className="btn btn-secondary" style={{ padding: '10px 16px' }}>
+                  <button type="submit" className="btn btn-secondary" style={{ padding: '10px 16px', width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}>
                     <Upload size={16} style={{ marginRight: '6px' }} />
                     Subir Material
                   </button>
@@ -468,35 +505,48 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {weekAssignments.map(a => (
                     <div key={a.id} style={styles.evalItem}>
-                      <div className="flex-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '10px', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' }}>
-                        <div>
-                          <strong style={{ fontSize: '1.05rem', color: '#fff' }}>{a.name}</strong>
-                          <span style={styles.categoryBadge}>{a.category} ({a.type})</span>
-                          {user.role === 'STUDENT' && (() => {
-                            const submission = submissions.find(s => s.assignmentId === a.id);
-                            const studentGrades = grades.filter(g => g.assignmentId === a.id);
-                            const grade = studentGrades.length > 0 ? studentGrades[studentGrades.length - 1] : null;
-                            return (
-                              <>
-                                {submission ? (
-                                  <span className="badge" style={{ background: 'hsla(142, 71%, 45%, 0.12)', border: '1px solid hsla(142, 71%, 45%, 0.25)', color: 'hsl(142 80% 80%)', marginLeft: '10px', textTransform: 'none' }}>
-                                    Entregado
-                                  </span>
-                                ) : (
-                                  <span className="badge" style={{ background: 'hsla(0, 84%, 60%, 0.12)', border: '1px solid hsla(0, 84%, 60%, 0.25)', color: 'hsl(0 90% 85%)', marginLeft: '10px', textTransform: 'none' }}>
-                                    Pendiente
-                                  </span>
-                                )}
-                                {grade && (
-                                  <span className="badge" style={{ background: 'hsla(190, 90%, 50%, 0.12)', border: '1px solid hsla(190, 90%, 50%, 0.25)', color: 'hsl(190 100% 80%)', marginLeft: '10px', textTransform: 'none' }}>
-                                    Calificado: {grade.score}
-                                  </span>
-                                )}
-                              </>
-                            );
-                          })()}
+                      <div 
+                        style={{ 
+                          display: 'flex',
+                          flexDirection: isMobile ? 'column' : 'row',
+                          alignItems: isMobile ? 'stretch' : 'center',
+                          justifyContent: 'space-between',
+                          borderBottom: '1px solid rgba(255,255,255,0.04)', 
+                          paddingBottom: '10px', 
+                          marginBottom: '10px', 
+                          gap: '10px' 
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexGrow: 1 }}>
+                          <strong style={{ fontSize: '1.05rem', color: '#fff', display: 'block' }}>{a.name}</strong>
+                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', marginTop: '2px' }}>
+                            <span style={{ ...styles.categoryBadge, marginLeft: 0 }}>{a.category} ({a.type})</span>
+                            {user.role === 'STUDENT' && (() => {
+                              const submission = submissions.find(s => s.assignmentId === a.id);
+                              const studentGrades = grades.filter(g => g.assignmentId === a.id);
+                              const grade = studentGrades.length > 0 ? studentGrades[studentGrades.length - 1] : null;
+                              return (
+                                <>
+                                  {submission ? (
+                                    <span className="badge" style={{ background: 'hsla(142, 71%, 45%, 0.12)', border: '1px solid hsla(142, 71%, 45%, 0.25)', color: 'hsl(142 80% 80%)', textTransform: 'none', marginLeft: 0 }}>
+                                      Entregado
+                                    </span>
+                                  ) : (
+                                    <span className="badge" style={{ background: 'hsla(0, 84%, 60%, 0.12)', border: '1px solid hsla(0, 84%, 60%, 0.25)', color: 'hsl(0 90% 85%)', textTransform: 'none', marginLeft: 0 }}>
+                                      Pendiente
+                                    </span>
+                                  )}
+                                  {grade && (
+                                    <span className="badge" style={{ background: 'hsla(190, 90%, 50%, 0.12)', border: '1px solid hsla(190, 90%, 50%, 0.25)', color: 'hsl(190 100% 80%)', textTransform: 'none', marginLeft: 0 }}>
+                                      Calificado: {grade.score}
+                                    </span>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
                         </div>
-                        <span style={styles.dateRange}>
+                        <span style={{ ...styles.dateRange, textAlign: isMobile ? 'left' : 'right' }}>
                           Plazo: {new Date(a.startDate).toLocaleDateString()} al {new Date(a.endDate).toLocaleDateString()}
                         </span>
                       </div>
@@ -513,7 +563,7 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                           <button
                             type="button"
                             onClick={() => {
-                              setPreviewFileUrl(`http://localhost:8081/${a.instructionsFilePath}`);
+                              setPreviewFileUrl(api.getFileUrl(a.instructionsFilePath));
                               setPreviewFileName(`Indicaciones: ${a.name}`);
                             }}
                             className="btn btn-secondary"
@@ -524,10 +574,9 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                             <span>Vista Previa</span>
                           </button>
                           <a
-                            href={`http://localhost:8081/${a.instructionsFilePath}`}
+                            href={api.getFileUrl(a.instructionsFilePath)}
                             download
-                            target="_blank"
-                            rel="noreferrer"
+                            target="_blank; noreferrer"
                             className="btn btn-secondary"
                             style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', color: 'inherit' }}
                             title="Descargar indicaciones"
@@ -558,7 +607,7 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        setPreviewFileUrl(`http://localhost:8081/${submission.filePath}`);
+                                        setPreviewFileUrl(api.getFileUrl(submission.filePath));
                                         setPreviewFileName(`Mi Entrega: ${a.name}`);
                                       }}
                                       className="btn btn-secondary"
@@ -568,10 +617,9 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                                       <span>Vista Previa</span>
                                     </button>
                                     <a
-                                      href={`http://localhost:8081/${submission.filePath}`}
+                                      href={api.getFileUrl(submission.filePath)}
                                       download
-                                      target="_blank"
-                                      rel="noreferrer"
+                                      target="_blank; noreferrer"
                                       className="btn btn-secondary"
                                       style={{ padding: '4px 10px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', color: 'inherit' }}
                                     >
@@ -725,7 +773,7 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                                                 <button
                                                   type="button"
                                                   onClick={() => {
-                                                    setPreviewFileUrl(`http://localhost:8081/${sub.filePath}`);
+                                                    setPreviewFileUrl(api.getFileUrl(sub.filePath));
                                                     setPreviewFileName(`Entrega: ${enr.studentUsername} - ${a.name}`);
                                                   }}
                                                   className="btn btn-secondary"
@@ -735,10 +783,9 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                                                   <span>Vista Previa</span>
                                                 </button>
                                                 <a
-                                                  href={`http://localhost:8081/${sub.filePath}`}
+                                                  href={api.getFileUrl(sub.filePath)}
                                                   download
-                                                  target="_blank"
-                                                  rel="noreferrer"
+                                                  target="_blank; noreferrer"
                                                   className="btn btn-secondary"
                                                   style={{ padding: '4px 10px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', color: 'inherit' }}
                                                 >
@@ -840,7 +887,7 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                         </button>
                       </div>
                       <form onSubmit={(e) => handleCreateAssignment(e, weekNumber)}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                           <div className="form-group" style={{ marginBottom: 0 }}>
                             <label className="form-label">Nombre de Evaluación</label>
                             <input name="name" className="form-input" placeholder="ej. Práctica Calificada 1" required />
@@ -863,12 +910,12 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                               <option value="EXFINAL">EXFINAL (Examen Final - 30%)</option>
                             </select>
                           </div>
-                          <div></div>
-                          <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
+                          {!isMobile && <div></div>}
+                          <div className="form-group" style={{ gridColumn: isMobile ? 'span 1' : 'span 2', marginBottom: 0 }}>
                             <label className="form-label">Descripción / Syllabus de Evaluación (Opcional)</label>
                             <textarea name="description" className="form-input" placeholder="Escriba aquí los temas a evaluar o indicaciones adicionales..." style={{ height: '70px', resize: 'vertical' }} />
                           </div>
-                          <div className="form-group" style={{ gridColumn: 'span 2', marginBottom: 0 }}>
+                          <div className="form-group" style={{ gridColumn: isMobile ? 'span 1' : 'span 2', marginBottom: 0 }}>
                             <label className="form-label">Cargar Archivo de Indicaciones / Rúbrica (Opcional)</label>
                             <input type="file" name="file" className="form-input" style={{ padding: '8px 12px' }} />
                           </div>
@@ -1012,18 +1059,35 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
         </div>
       )}
 
-      <div className="glass-card fade-in" style={styles.cardContainer}>
+      <div className="glass-card fade-in" style={{
+        ...styles.cardContainer,
+        padding: isMobile ? '20px 15px' : '30px',
+      }}>
 
-      <div className="flex-between mb-20" style={styles.cardHeader}>
+      <div 
+        style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'stretch' : 'center',
+          justifyContent: 'space-between',
+          gap: isMobile ? '16px' : '0px',
+          borderBottom: '1px solid var(--border-light)',
+          paddingBottom: '20px',
+          marginBottom: '20px',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Book size={28} style={{ color: 'hsl(var(--primary))' }} />
+          <Book size={28} style={{ color: 'hsl(var(--primary))', flexShrink: 0 }} />
           <div>
-            <h2 style={styles.mainTitle}>{sectionTitle}</h2>
+            <h2 style={{
+              ...styles.mainTitle,
+              fontSize: isMobile ? '1.4rem' : '1.75rem',
+            }}>{sectionTitle}</h2>
             {sectionCode && <p style={styles.subtitle}>Sección: {sectionCode} | Ciclo Académico: 2026-I</p>}
           </div>
         </div>
         {onBack && (
-          <button onClick={onBack} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button onClick={onBack} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
             <ArrowLeft size={16} />
             <span>Volver a Mis Cursos</span>
           </button>
