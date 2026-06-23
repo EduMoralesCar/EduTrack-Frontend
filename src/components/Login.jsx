@@ -1,23 +1,12 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
-import { User, Lock, LogIn, ShieldAlert, GraduationCap, School, Settings } from 'lucide-react';
+import { User, Lock, LogIn, ShieldAlert, GraduationCap, School } from 'lucide-react';
 
 export default function Login({ onLoginSuccess }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showConfig, setShowConfig] = useState(false);
-  const [customBackendUrl, setCustomBackendUrl] = useState(localStorage.getItem('edutrack_backend_url') || 'http://localhost:8081');
-
-  const handleSaveConfig = () => {
-    let url = customBackendUrl.trim();
-    if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'http://' + url;
-    }
-    localStorage.setItem('edutrack_backend_url', url);
-    setShowConfig(false);
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,55 +40,6 @@ export default function Login({ onLoginSuccess }) {
 
   return (
     <div style={styles.container}>
-      {/* Dynamic Backend Server URL config button */}
-      <button 
-        onClick={() => setShowConfig(true)}
-        style={styles.configBtn}
-        title="Configurar Dirección del Servidor"
-      >
-        <Settings size={20} />
-      </button>
-
-      {showConfig && (
-        <div style={styles.modalOverlay}>
-          <div className="glass-card" style={styles.modalCard}>
-            <h3 style={styles.modalTitle}>Configurar Servidor</h3>
-            <p style={styles.modalText}>
-              Establece la URL del backend (ej. para pruebas en red local con celular).
-            </p>
-            <div className="form-group" style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label className="form-label">Dirección Base (API)</label>
-              <input
-                type="text"
-                className="form-input"
-                value={customBackendUrl}
-                onChange={(e) => setCustomBackendUrl(e.target.value)}
-                placeholder="http://192.168.x.x:8081"
-                style={{ width: '100%' }}
-              />
-            </div>
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '12px' }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setShowConfig(false)}
-                style={{ padding: '8px 16px', fontSize: '0.9rem' }}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleSaveConfig}
-                style={{ padding: '8px 16px', fontSize: '0.9rem' }}
-              >
-                Guardar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="glass-card" style={styles.card}>
         <div style={styles.header}>
           <div style={styles.logoContainer}>
@@ -322,54 +262,5 @@ const styles = {
     fontSize: '0.8rem',
     color: 'hsl(var(--text-secondary))',
     fontFamily: 'monospace',
-  },
-  configBtn: {
-    position: 'absolute',
-    top: '20px',
-    right: '20px',
-    background: 'rgba(255, 255, 255, 0.03)',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
-    borderRadius: '12px',
-    width: '42px',
-    height: '42px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    color: 'hsl(var(--text-secondary))',
-    transition: 'all 0.2s ease',
-    zIndex: 10,
-  },
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    width: '100vw',
-    height: '100vh',
-    background: 'rgba(5, 7, 12, 0.8)',
-    backdropFilter: 'blur(8px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 999,
-  },
-  modalCard: {
-    width: '90%',
-    maxWidth: '400px',
-    padding: '24px',
-    animation: 'slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) ease',
-  },
-  modalTitle: {
-    fontSize: '1.25rem',
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: '8px',
-    fontFamily: 'var(--font-heading)',
-  },
-  modalText: {
-    fontSize: '0.9rem',
-    color: 'hsl(var(--text-secondary))',
-    marginBottom: '16px',
-    lineHeight: '1.4',
   }
 };
