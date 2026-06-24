@@ -41,6 +41,11 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
   const [expandedTeacherGrading, setExpandedTeacherGrading] = useState({}); // Toggles grading list for each evaluation
   const [notification, setNotification] = useState({ message: '', type: '' }); // type: 'success' | 'danger'
   
+  // States for custom deletion confirmation modal
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [materialToDelete, setMaterialToDelete] = useState(null);
+  const [materialNameToDelete, setMaterialNameToDelete] = useState('');
+  
   // States for inline preview
   const [previewFileUrl, setPreviewFileUrl] = useState(null);
   const [previewFileName, setPreviewFileName] = useState('');
@@ -161,14 +166,24 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
     }
   };
 
-  const handleDeleteMaterial = async (materialId) => {
-    if (!window.confirm('¿Está seguro de que desea eliminar este material?')) return;
+  const handleDeleteMaterialClick = (materialId, title) => {
+    setMaterialToDelete(materialId);
+    setMaterialNameToDelete(title);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDeleteMaterial = async () => {
+    if (!materialToDelete) return;
     try {
-      await api.materials.delete(materialId);
+      await api.materials.delete(materialToDelete);
       showNotification('Material eliminado con éxito.');
       fetchCourseData(selectedSection);
     } catch (err) {
       showNotification('Error al eliminar material: ' + err.message, 'danger');
+    } finally {
+      setShowDeleteConfirm(false);
+      setMaterialToDelete(null);
+      setMaterialNameToDelete('');
     }
   };
 
@@ -439,7 +454,7 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                               {m.visible ? <EyeOff size={14} /> : <Eye size={14} style={{ color: 'hsl(var(--warning))' }} />}
                             </button>
                             <button 
-                              onClick={() => handleDeleteMaterial(m.id)}
+                              onClick={() => handleDeleteMaterialClick(m.id, m.title)}
                               className="btn btn-danger"
                               style={{ padding: '6px 10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center' }}
                               title="Eliminar material"
@@ -1116,6 +1131,40 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
         </div>
       )}
     </div>
+
+    {/* Custom Confirmation Modal for Deletion */}
+    {showDeleteConfirm && (
+      <div style={styles.modalOverlay}>
+        <div className="glass-card" style={styles.modalContent}>
+          <div style={styles.modalHeader}>
+            <h3 style={{ color: '#fff', margin: 0 }}>Confirmar Eliminación</h3>
+          </div>
+          <div style={{ padding: '20px 0', color: 'hsl(var(--text-secondary))', fontSize: '0.95rem' }}>
+            ¿Está seguro que desea eliminar el material académico <strong style={{ color: '#fff' }}>"{materialNameToDelete}"</strong>? Esta acción no se puede deshacer.
+          </div>
+          <div style={styles.modalFooter}>
+            <button 
+              type="button" 
+              className="btn btn-secondary" 
+              onClick={() => {
+                setShowDeleteConfirm(false);
+                setMaterialToDelete(null);
+                setMaterialNameToDelete('');
+              }}
+            >
+              Cancelar
+            </button>
+            <button 
+              type="button" 
+              className="btn btn-danger" 
+              onClick={handleConfirmDeleteMaterial}
+            >
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
   </>
   );
 }
@@ -1266,5 +1315,42 @@ const styles = {
     cursor: 'pointer',
     fontSize: '0.85rem',
     fontWeight: '500',
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(5, 7, 12, 0.85)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)',
+  },
+  modalContent: {
+    width: '90%',
+    maxWidth: '480px',
+    background: 'hsl(var(--bg-secondary))',
+    border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: '16px',
+    padding: '24px',
+    boxShadow: 'var(--glass-shadow)',
+    textAlign: 'left',
+  },
+  modalHeader: {
+    borderBottom: '1px solid var(--border-light)',
+    paddingBottom: '12px',
+    marginBottom: '16px',
+  },
+  modalFooter: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '12px',
+    marginTop: '20px',
+    borderTop: '1px solid var(--border-light)',
+    paddingTop: '16px',
   }
 };
