@@ -1,8 +1,9 @@
 export const getBaseUrl = () => {
-  const customUrl = localStorage.getItem('edutrack_backend_url');
-  if (customUrl) {
-    return customUrl.endsWith('/') ? `${customUrl}api` : `${customUrl}/api`;
+  // Clear legacy custom URL config to ensure devices connect to the automatically resolved backend
+  if (localStorage.getItem('edutrack_backend_url')) {
+    localStorage.removeItem('edutrack_backend_url');
   }
+
   const envUrl = import.meta.env.VITE_API_URL;
   if (envUrl) {
     return envUrl.endsWith('/') ? `${envUrl}api` : `${envUrl}/api`;
@@ -19,17 +20,18 @@ export const getFileUrl = (filePath) => {
   if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
     return filePath;
   }
-  const customUrl = localStorage.getItem('edutrack_backend_url');
+  
+  // Clear legacy custom URL config
+  if (localStorage.getItem('edutrack_backend_url')) {
+    localStorage.removeItem('edutrack_backend_url');
+  }
+
   let base = 'http://localhost:8081/';
-  if (customUrl) {
-    base = customUrl.endsWith('/') ? customUrl : `${customUrl}/`;
-  } else {
-    const envUrl = import.meta.env.VITE_API_URL;
-    if (envUrl) {
-      base = envUrl.endsWith('/') ? envUrl : `${envUrl}/`;
-    } else if (!import.meta.env.DEV) {
-      base = 'https://edutrack-backend-1nvs.onrender.com/';
-    }
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl) {
+    base = envUrl.endsWith('/') ? envUrl : `${envUrl}/`;
+  } else if (!import.meta.env.DEV) {
+    base = 'https://edutrack-backend-1nvs.onrender.com/';
   }
   return `${base}${filePath}`;
 };

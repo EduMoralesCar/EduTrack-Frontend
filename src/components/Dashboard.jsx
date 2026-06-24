@@ -139,6 +139,24 @@ export default function Dashboard({ user, onLogout }) {
 
   return (
     <div style={styles.dashboardContainer}>
+      {/* Mobile Backdrop Overlay */}
+      {isMobile && sidebarOpen && (
+        <div 
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
+            zIndex: 850,
+          }}
+        />
+      )}
+
       {/* Mobile Toggle Button */}
       {isMobile && (
         <button 
@@ -146,6 +164,7 @@ export default function Dashboard({ user, onLogout }) {
           style={{
             ...styles.mobileToggleBtn,
             display: 'flex', // Force show on mobile
+            zIndex: 950, // Sit on top of backdrop and sidebar
           }}
         >
           {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
@@ -154,7 +173,7 @@ export default function Dashboard({ user, onLogout }) {
 
       {/* Sidebar Layout */}
       <aside 
-        className="glass-card" 
+        className={isMobile ? "" : "glass-card"} 
         style={{
           ...styles.sidebar,
           transform: sidebarOpen ? 'translateX(0)' : 'translateX(-280px)',
@@ -162,6 +181,12 @@ export default function Dashboard({ user, onLogout }) {
           height: '100vh',
           left: 0,
           top: 0,
+          backgroundColor: isMobile ? 'hsl(var(--bg-secondary))' : 'var(--glass-bg)',
+          backdropFilter: isMobile ? 'none' : 'blur(var(--glass-blur))',
+          WebkitBackdropFilter: isMobile ? 'none' : 'blur(var(--glass-blur))',
+          borderRight: '1px solid var(--border-light)',
+          borderRadius: 0,
+          zIndex: 900,
         }}
       >
         <div style={styles.sidebarHeader}>
