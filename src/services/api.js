@@ -7,13 +7,11 @@ export const getBaseUrl = () => {
   if (envUrl) {
     return envUrl.endsWith('/') ? `${envUrl}api` : `${envUrl}/api`;
   }
-  const isCapacitor = !!(window.Capacitor || (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.cordova));
-  const isLocalhostWeb = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && !isCapacitor;
-  if (!isLocalhostWeb) {
-    const prodDefault = 'https://edutrack-backend-1nvs.onrender.com';
-    return `${prodDefault}/api`;
+  if (import.meta.env.DEV) {
+    return 'http://localhost:8081/api';
   }
-  return 'http://localhost:8081/api';
+  const prodDefault = 'https://edutrack-backend-1nvs.onrender.com';
+  return `${prodDefault}/api`;
 };
 
 export const getFileUrl = (filePath) => {
@@ -29,12 +27,8 @@ export const getFileUrl = (filePath) => {
     const envUrl = import.meta.env.VITE_API_URL;
     if (envUrl) {
       base = envUrl.endsWith('/') ? envUrl : `${envUrl}/`;
-    } else {
-      const isCapacitor = !!(window.Capacitor || (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.cordova));
-      const isLocalhostWeb = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && !isCapacitor;
-      if (!isLocalhostWeb) {
-        base = 'https://edutrack-backend-1nvs.onrender.com/';
-      }
+    } else if (!import.meta.env.DEV) {
+      base = 'https://edutrack-backend-1nvs.onrender.com/';
     }
   }
   return `${base}${filePath}`;
