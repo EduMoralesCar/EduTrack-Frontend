@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
-import { CalendarCheck, BookOpen, Calendar, User, CheckCircle, TrendingUp, FileText, Check, X, Upload } from 'lucide-react';
+import { CalendarCheck, BookOpen, Calendar, User, CheckCircle, TrendingUp, FileText, Check, X, Upload, Download } from 'lucide-react';
 
 export default function Attendance({ user }) {
   const [sections, setSections] = useState([]);
