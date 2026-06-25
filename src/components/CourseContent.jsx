@@ -14,7 +14,8 @@ import {
   EyeOff,
   Trash2,
   Download,
-  Save
+  Save,
+  Edit
 } from 'lucide-react';
 
 export default function CourseContent({ user, preSelectedSectionId = null, onBack = null }) {
@@ -45,6 +46,7 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [materialToDelete, setMaterialToDelete] = useState(null);
   const [materialNameToDelete, setMaterialNameToDelete] = useState('');
+  const [editingAssignment, setEditingAssignment] = useState(null);
   
   // States for inline preview
   const [previewFileUrl, setPreviewFileUrl] = useState(null);
@@ -122,7 +124,7 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
         } else {
           enrs = await api.enrollments.getBySectionId(secId);
         }
-        setSubmissions(subs || []);
+        setSubmissions(subs ? subs.sort((a, b) => b.id - a.id) : []);
         setGrades(grds || []);
         setEnrollments(enrs || []);
       } catch (subErr) {
@@ -196,6 +198,7 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
     const endDateVal = e.target.elements.endDate.value;
     const description = e.target.elements.description?.value || '';
     const file = e.target.elements.file?.files?.[0];
+    const maxAttempts = e.target.elements.maxAttempts?.value || 1;
 
     if (!name || !type || !category || !startDateVal || !endDateVal) {
       showNotification('Por favor complete todos los campos.', 'danger');
@@ -211,6 +214,7 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
       formData.append('startDate', new Date(startDateVal).toISOString().slice(0, 19));
       formData.append('endDate', new Date(endDateVal).toISOString().slice(0, 19));
       formData.append('sectionId', selectedSection);
+      formData.append('maxAttempts', maxAttempts);
       if (description) {
         formData.append('description', description);
       }
@@ -225,6 +229,51 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
       fetchCourseData(selectedSection);
     } catch(err) {
       showNotification('Error al crear evaluación: ' + err.message, 'danger');
+    }
+  };
+
+  const handleUpdateAssignment = async (e) => {
+    e.preventDefault();
+    if (!editingAssignment) return;
+
+    const id = editingAssignment.id;
+    const name = e.target.elements.name.value;
+    const type = e.target.elements.type.value;
+    const category = e.target.elements.category.value;
+    const startDateVal = e.target.elements.startDate.value;
+    const endDateVal = e.target.elements.endDate.value;
+    const description = e.target.elements.description?.value || '';
+    const file = e.target.elements.file?.files?.[0];
+    const maxAttempts = e.target.elements.maxAttempts?.value || 1;
+
+    if (!name || !type || !category || !startDateVal || !endDateVal) {
+      showNotification('Por favor complete todos los campos.', 'danger');
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('type', type);
+      formData.append('category', category);
+      formData.append('weekNumber', editingAssignment.weekNumber);
+      formData.append('startDate', new Date(startDateVal).toISOString().slice(0, 19));
+      formData.append('endDate', new Date(endDateVal).toISOString().slice(0, 19));
+      formData.append('sectionId', selectedSection);
+      formData.append('maxAttempts', maxAttempts);
+      if (description) {
+        formData.append('description', description);
+      }
+      if (file) {
+        formData.append('file', file);
+      }
+
+      await api.assignments.update(id, formData);
+      showNotification('Evaluación actualizada con éxito.');
+      setEditingAssignment(null);
+      fetchCourseData(selectedSection);
+    } catch (err) {
+      showNotification('Error al actualizar evaluación: ' + err.message, 'danger');
     }
   };
 
@@ -533,7 +582,30 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                         }}
                       >
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexGrow: 1 }}>
-                          <strong style={{ fontSize: '1.05rem', color: '#fff', display: 'block' }}>{a.name}</strong>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <strong style={{ fontSize: '1.05rem', color: '#fff' }}>{a.name}</strong>
+                            {user.role === 'TEACHER' && (
+                              <button
+                                onClick={() => setEditingAssignment(a)}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: 'hsl(var(--text-muted))',
+                                  cursor: 'pointer',
+                                  padding: '2px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  transition: 'color 0.2s',
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
+                                onMouseLeave={(e) => e.currentTarget.style.color = 'hsl(var(--text-muted))'}
+                                title="Editar evaluación"
+                              >
+                                <Edit size={14} />
+                              </button>
+                            )}
+                          </div>
                           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', marginTop: '2px' }}>
                             <span style={{ ...styles.categoryBadge, marginLeft: 0 }}>{a.category} ({a.type})</span>
                             {user.role === 'STUDENT' && (() => {
@@ -602,27 +674,37 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                         </div>
                       )}
 
-                      {/* File submit/status container for student */}
+                    {/* File submit/status container for student */}
                       {user.role === 'STUDENT' && (() => {
-                        const submission = submissions.find(s => s.assignmentId === a.id);
+                        const studentSubmissions = submissions.filter(s => s.assignmentId === a.id && s.studentId === user.id);
+                        const attemptsMade = studentSubmissions.length;
+                        const maxAttempts = a.maxAttempts || 1;
+                        const canSubmitMore = attemptsMade < maxAttempts;
+                        const latestSubmission = studentSubmissions.sort((x, y) => y.id - x.id)[0];
+                        
                         const studentGrades = grades.filter(g => g.assignmentId === a.id);
                         const grade = studentGrades.length > 0 ? studentGrades[studentGrades.length - 1] : null;
                         
-                        if (submission) {
-                          return (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                              {/* Student's Submission Details */}
-                              <div style={{ ...styles.studentSubmitContainer, background: 'rgba(255,255,255,0.02)', padding: '14px', border: '1px solid var(--border-light)', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
-                                <span style={{ fontSize: '0.85rem', color: '#fff', fontWeight: '600', display: 'block' }}>Mi Entrega:</span>
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {/* Attempt Counter badge */}
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '0.82rem', color: 'hsl(var(--text-secondary))', marginBottom: '4px' }}>
+                              <span>Intentos de entrega: <strong style={{ color: '#fff' }}>{attemptsMade} de {maxAttempts}</strong> utilizados</span>
+                            </div>
+
+                            {/* Student's Latest Submission Details */}
+                            {latestSubmission && (
+                              <div style={{ ...styles.studentSubmitContainer, background: 'rgba(255,255,255,0.02)', padding: '14px', border: '1px solid var(--border-light)', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'stretch', marginTop: 0 }}>
+                                <span style={{ fontSize: '0.85rem', color: '#fff', fontWeight: '600', display: 'block' }}>Mi Última Entrega:</span>
                                 <div className="flex-between mt-10" style={{ flexWrap: 'wrap', gap: '8px' }}>
                                   <span style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))' }}>
-                                    Enviado el: {new Date(submission.submissionDate).toLocaleString()}
+                                    Enviado el: {new Date(latestSubmission.submissionDate).toLocaleString()}
                                   </span>
                                   <div style={{ display: 'flex', gap: '8px' }}>
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        setPreviewFileUrl(api.getFileUrl(submission.filePath));
+                                        setPreviewFileUrl(api.getFileUrl(latestSubmission.filePath));
                                         setPreviewFileName(`Mi Entrega: ${a.name}`);
                                       }}
                                       className="btn btn-secondary"
@@ -632,7 +714,7 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                                       <span>Vista Previa</span>
                                     </button>
                                     <a
-                                      href={api.getFileUrl(submission.filePath)}
+                                      href={api.getFileUrl(latestSubmission.filePath)}
                                       download
                                       target="_blank; noreferrer"
                                       className="btn btn-secondary"
@@ -643,87 +725,89 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                                     </a>
                                   </div>
                                 </div>
-                                {submission.studentComment && (
+                                {latestSubmission.studentComment && (
                                   <p style={{ fontSize: '0.85rem', color: 'hsl(var(--text-muted))', marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.03)', paddingTop: '8px' }}>
-                                    <strong>Mi comentario:</strong> "{submission.studentComment}"
+                                    <strong>Mi comentario:</strong> "{latestSubmission.studentComment}"
                                   </p>
                                 )}
                               </div>
+                            )}
 
-                              {/* Teacher Feedback & Grade Details */}
-                              {grade && (
-                                <div style={{ background: 'hsla(142, 71%, 45%, 0.04)', border: '1px solid hsla(142, 71%, 45%, 0.15)', borderRadius: '8px', padding: '14px' }}>
-                                  <span style={{ fontSize: '0.85rem', color: 'hsl(142 80% 80%)', display: 'block', fontWeight: '600' }}>Retroalimentación del Docente:</span>
-                                  <span style={{ fontSize: '1.1rem', fontWeight: '800', color: '#fff', display: 'block', marginTop: '6px' }}>
-                                    Nota: {grade.score} / 20
-                                  </span>
-                                  {grade.teacherComment && (
-                                    <p style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', marginTop: '8px', lineHeight: '1.4' }}>
-                                      {grade.teacherComment}
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        }
-
-                        // Render upload form if not submitted yet
-                        if (!showSubmissionForm[a.id]) {
-                          return (
-                            <div style={{ marginTop: '10px' }}>
-                              <button 
-                                className="btn btn-primary" 
-                                onClick={() => setShowSubmissionForm(prev => ({ ...prev, [a.id]: true }))} 
-                                style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                              >
-                                <Upload size={14} />
-                                <span>Realizar Entrega</span>
-                              </button>
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div style={{ ...styles.studentSubmitContainer, flexDirection: 'column', alignItems: 'stretch', gap: '12px', display: 'flex', position: 'relative' }}>
-                            <button
-                              type="button"
-                              onClick={() => setShowSubmissionForm(prev => ({ ...prev, [a.id]: false }))}
-                              style={{ position: 'absolute', top: '10px', right: '12px', background: 'transparent', border: 'none', color: 'hsl(var(--text-muted))', cursor: 'pointer', fontSize: '1rem', fontWeight: 'bold' }}
-                              title="Cancelar"
-                            >
-                              ✕
-                            </button>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingRight: '20px' }}>
-                              <span style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', fontWeight: '500' }}>Comentario de entrega (opcional):</span>
-                              <textarea 
-                                id={`comment-input-${a.id}`}
-                                placeholder="Escribe un mensaje o aclaración sobre tu entrega..."
-                                onChange={e => handleCommentChange(a.id, e.target.value)} 
-                                className="form-input"
-                                style={{ fontSize: '0.85rem', padding: '8px 12px', width: '100%', minHeight: '60px', resize: 'vertical' }} 
-                              />
-                            </div>
-                            <div className="flex-between" style={{ flexWrap: 'wrap', gap: '10px' }}>
-                              <span style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))' }}>Sube tu archivo de entrega aquí:</span>
-                              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                <input 
-                                  type="file" 
-                                  id={`file-input-${a.id}`}
-                                  onChange={e => handleFileChange(a.id, e.target.files[0])} 
-                                  className="form-input"
-                                  style={{ fontSize: '0.8rem', padding: '6px 12px', width: '220px' }} 
-                                />
-                                <button 
-                                  className="btn btn-primary" 
-                                  onClick={() => handleUploadSubmission(a.id)} 
-                                  style={{ padding: '8px 16px', fontSize: '0.85rem' }}
-                                >
-                                  <Upload size={14} style={{ marginRight: '6px' }} />
-                                  Enviar Tarea
-                                </button>
+                            {/* Teacher Feedback & Grade Details */}
+                            {grade && (
+                              <div style={{ background: 'hsla(142, 71%, 45%, 0.04)', border: '1px solid hsla(142, 71%, 45%, 0.15)', borderRadius: '8px', padding: '14px' }}>
+                                <span style={{ fontSize: '0.85rem', color: 'hsl(142 80% 80%)', display: 'block', fontWeight: '600' }}>Retroalimentación del Docente:</span>
+                                <span style={{ fontSize: '1.1rem', fontWeight: '800', color: '#fff', display: 'block', marginTop: '6px' }}>
+                                  Nota: {grade.score} / 20
+                                </span>
+                                {grade.teacherComment && (
+                                  <p style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', marginTop: '8px', lineHeight: '1.4' }}>
+                                    {grade.teacherComment}
+                                  </p>
+                                )}
                               </div>
-                            </div>
+                            )}
+
+                            {/* Submission form if they can submit more */}
+                            {canSubmitMore ? (
+                              !showSubmissionForm[a.id] ? (
+                                <div style={{ marginTop: '5px' }}>
+                                  <button 
+                                    className="btn btn-primary" 
+                                    onClick={() => setShowSubmissionForm(prev => ({ ...prev, [a.id]: true }))} 
+                                    style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                                  >
+                                    <Upload size={14} />
+                                    <span>{attemptsMade > 0 ? "Re-entregar Trabajo" : "Realizar Entrega"}</span>
+                                  </button>
+                                </div>
+                              ) : (
+                                <div style={{ ...styles.studentSubmitContainer, flexDirection: 'column', alignItems: 'stretch', gap: '12px', display: 'flex', position: 'relative', marginTop: 0 }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowSubmissionForm(prev => ({ ...prev, [a.id]: false }))}
+                                    style={{ position: 'absolute', top: '10px', right: '12px', background: 'transparent', border: 'none', color: 'hsl(var(--text-muted))', cursor: 'pointer', fontSize: '1rem', fontWeight: 'bold' }}
+                                    title="Cancelar"
+                                  >
+                                    ✕
+                                  </button>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingRight: '20px' }}>
+                                    <span style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', fontWeight: '500' }}>Comentario de entrega (opcional - intento {attemptsMade + 1} de {maxAttempts}):</span>
+                                    <textarea 
+                                      id={`comment-input-${a.id}`}
+                                      placeholder="Escribe un mensaje o aclaración sobre tu entrega..."
+                                      onChange={e => handleCommentChange(a.id, e.target.value)} 
+                                      className="form-input"
+                                      style={{ fontSize: '0.85rem', padding: '8px 12px', width: '100%', minHeight: '60px', resize: 'vertical' }} 
+                                    />
+                                  </div>
+                                  <div className="flex-between" style={{ flexWrap: 'wrap', gap: '10px' }}>
+                                    <span style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))' }}>Sube tu archivo de entrega aquí:</span>
+                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                      <input 
+                                        type="file" 
+                                        id={`file-input-${a.id}`}
+                                        onChange={e => handleFileChange(a.id, e.target.files[0])} 
+                                        className="form-input"
+                                        style={{ fontSize: '0.8rem', padding: '6px 12px', width: '220px' }} 
+                                      />
+                                      <button 
+                                        className="btn btn-primary" 
+                                        onClick={() => handleUploadSubmission(a.id)} 
+                                        style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                                      >
+                                        <Upload size={14} style={{ marginRight: '6px' }} />
+                                        Enviar Tarea
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            ) : (
+                              <div style={{ padding: '10px 14px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border-light)', borderRadius: '8px', color: 'hsl(var(--text-muted))', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span>Límite de intentos alcanzado ({attemptsMade}/{maxAttempts}). No puedes enviar más entregas.</span>
+                              </div>
+                            )}
                           </div>
                         );
                       })()}
@@ -756,7 +840,8 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                                 ) : (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                                     {enrollments.map(enr => {
-                                      const sub = submissions.find(s => s.assignmentId === a.id && s.studentId === enr.studentId);
+                                      const studentSubs = submissions.filter(s => s.assignmentId === a.id && s.studentId === enr.studentId);
+                                      const sub = studentSubs.sort((x, y) => y.id - x.id)[0]; // Get latest attempt
                                       const matchingGrades = grades.filter(g => g.assignmentId === a.id && g.studentId === enr.studentId);
                                       const grade = matchingGrades.length > 0 ? matchingGrades[matchingGrades.length - 1] : null;
                                       
@@ -777,7 +862,9 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                               <span style={{ fontWeight: '600', color: '#fff', fontSize: '0.9rem' }}>{enr.studentUsername}</span>
                                               {sub ? (
-                                                <span className="badge" style={{ background: 'hsla(142, 71%, 45%, 0.12)', border: '1px solid hsla(142, 71%, 45%, 0.25)', color: 'hsl(142 80% 80%)', textTransform: 'none', fontSize: '0.7rem' }}>Entregado</span>
+                                                <span className="badge" style={{ background: 'hsla(142, 71%, 45%, 0.12)', border: '1px solid hsla(142, 71%, 45%, 0.25)', color: 'hsl(142 80% 80%)', textTransform: 'none', fontSize: '0.7rem' }}>
+                                                  Entregado (Intento {studentSubs.length} de {a.maxAttempts || 1})
+                                                </span>
                                               ) : (
                                                 <span className="badge" style={{ background: 'hsla(0, 84%, 60%, 0.12)', border: '1px solid hsla(0, 84%, 60%, 0.25)', color: 'hsl(0 90% 85%)', textTransform: 'none', fontSize: '0.7rem' }}>Pendiente</span>
                                               )}
@@ -941,6 +1028,10 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                           <div className="form-group" style={{ marginBottom: 0 }}>
                             <label className="form-label">Fecha de Cierre (Fin)</label>
                             <input name="endDate" type="datetime-local" className="form-input" required />
+                          </div>
+                          <div className="form-group" style={{ marginBottom: 0 }}>
+                            <label className="form-label">Intentos Máximos de Entrega</label>
+                            <input name="maxAttempts" type="number" min="1" defaultValue="1" className="form-input" required />
                           </div>
                         </div>
                         <button type="submit" className="btn btn-primary w-full" style={{ justifyContent: 'center' }}>
@@ -1162,6 +1253,83 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
               Eliminar
             </button>
           </div>
+        </div>
+      </div>
+    )}
+
+    {/* Custom Modal for Editing Evaluation */}
+    {editingAssignment && (
+      <div style={styles.modalOverlay}>
+        <div className="glass-card" style={{ ...styles.modalContent, maxWidth: '600px' }}>
+          <div style={styles.modalHeader}>
+            <h3 style={{ color: '#fff', margin: 0 }}>Editar Evaluación (Semana {editingAssignment.weekNumber})</h3>
+          </div>
+          <form onSubmit={handleUpdateAssignment}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px', marginBottom: '12px', maxHeight: '60vh', overflowY: 'auto', paddingRight: '6px' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Nombre de Evaluación</label>
+                <input name="name" defaultValue={editingAssignment.name} className="form-input" required />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Tipo</label>
+                <select name="type" defaultValue={editingAssignment.type} className="form-input" required>
+                  <option value="TAREA">Tarea</option>
+                  <option value="PRACTICA">Práctica Calificada</option>
+                  <option value="EXAMEN">Examen Final</option>
+                </select>
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Categoría institucional</label>
+                <select name="category" defaultValue={editingAssignment.category} className="form-input" required>
+                  <option value="PA">PA (Tareas/Participación - 10%)</option>
+                  <option value="PC1">PC1 (Práctica Calificada 1 - 20%)</option>
+                  <option value="PC2">PC2 (Práctica Calificada 2 - 20%)</option>
+                  <option value="PC3">PC3 (Práctica Calificada 3 - 20%)</option>
+                  <option value="EXFINAL">EXFINAL (Examen Final - 30%)</option>
+                </select>
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Intentos Máximos de Entrega</label>
+                <input name="maxAttempts" type="number" min="1" defaultValue={editingAssignment.maxAttempts || 1} className="form-input" required />
+              </div>
+              <div className="form-group" style={{ gridColumn: isMobile ? 'span 1' : 'span 2', marginBottom: 0 }}>
+                <label className="form-label">Descripción / Syllabus de Evaluación (Opcional)</label>
+                <textarea name="description" defaultValue={editingAssignment.description || ''} className="form-input" placeholder="Escriba aquí los temas a evaluar o indicaciones adicionales..." style={{ height: '70px', resize: 'vertical' }} />
+              </div>
+              <div className="form-group" style={{ gridColumn: isMobile ? 'span 1' : 'span 2', marginBottom: 0 }}>
+                <label className="form-label">Actualizar Archivo de Indicaciones (Opcional)</label>
+                {editingAssignment.instructionsFilePath && (
+                  <div style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', marginBottom: '4px' }}>
+                    Archivo actual: {editingAssignment.instructionsFilePath.substring(editingAssignment.instructionsFilePath.lastIndexOf('/') + 1)}
+                  </div>
+                )}
+                <input type="file" name="file" className="form-input" style={{ padding: '8px 12px' }} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Fecha de Inicio</label>
+                <input name="startDate" type="datetime-local" defaultValue={editingAssignment.startDate ? editingAssignment.startDate.slice(0, 16) : ''} className="form-input" required />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Fecha de Cierre (Fin)</label>
+                <input name="endDate" type="datetime-local" defaultValue={editingAssignment.endDate ? editingAssignment.endDate.slice(0, 16) : ''} className="form-input" required />
+              </div>
+            </div>
+            <div style={styles.modalFooter}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => setEditingAssignment(null)}
+              >
+                Cancelar
+              </button>
+              <button 
+                type="submit" 
+                className="btn btn-primary"
+              >
+                Guardar Cambios
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     )}

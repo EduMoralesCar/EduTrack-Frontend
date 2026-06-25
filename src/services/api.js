@@ -208,6 +208,10 @@ export const api = {
       method: 'POST',
       body: data,
     }),
+    update: (id, data) => request(`/assignments/${id}`, {
+      method: 'PUT',
+      body: data,
+    }),
     getBySection: (sectionId) => request(`/assignments/section/${sectionId}`),
     submit: (assignmentId, studentId, comment, file) => {
       const formData = new FormData();
