@@ -684,7 +684,102 @@ export default function Attendance({ user }) {
                 <div style={{ background: 'rgba(255,255,255,0.02)', padding: '30px', borderRadius: '10px', textAlign: 'center', color: 'hsl(var(--text-muted))', border: '1px solid var(--border-light)' }}>
                   No hay solicitudes de justificación registradas en esta sección.
                 </div>
+              ) : isMobile ? (
+                /* Mobile Card Layout for Justifications */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {justifications.map(j => (
+                    <div 
+                      key={j.id} 
+                      style={{ 
+                        background: 'rgba(255, 255, 255, 0.02)', 
+                        border: '1px solid var(--border-light)', 
+                        borderRadius: '12px', 
+                        padding: '16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: '700', color: '#fff', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <User size={15} style={{ color: 'hsl(var(--primary))' }} />
+                          {j.studentUsername}
+                        </span>
+                        <div>
+                          {j.status === 'PENDIENTE' && <span className="badge" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-light)', color: 'hsl(var(--text-secondary))' }}>Pendiente</span>}
+                          {j.status === 'APROBADO' && <span className="badge" style={{ background: 'hsla(142, 71%, 45%, 0.12)', border: '1px solid hsla(142, 71%, 45%, 0.25)', color: 'hsl(142 80% 80%)' }}>Aprobado</span>}
+                          {j.status === 'RECHAZADO' && <span className="badge" style={{ background: 'hsla(0, 84%, 60%, 0.12)', border: '1px solid hsla(0, 84%, 60%, 0.25)', color: 'hsl(0 90% 85%)' }}>Rechazado</span>}
+                        </div>
+                      </div>
+
+                      <div style={{ fontSize: '0.82rem', color: 'hsl(var(--text-secondary))', display: 'flex', gap: '6px' }}>
+                        <strong>Fecha de la falta:</strong>
+                        <span>{j.attendanceDate}</span>
+                      </div>
+
+                      <div style={{ 
+                        fontSize: '0.85rem', 
+                        color: 'hsl(var(--text-secondary))', 
+                        background: 'rgba(255,255,255,0.01)', 
+                        border: '1px solid rgba(255,255,255,0.03)',
+                        borderRadius: '8px', 
+                        padding: '10px 12px',
+                        lineHeight: '1.4',
+                        whiteSpace: 'normal',
+                        wordBreak: 'break-word'
+                      }}>
+                        <strong>Motivo:</strong>
+                        <p style={{ margin: '4px 0 0 0', color: '#fff' }}>{j.reason}</p>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', borderTop: '1px solid rgba(255,255,255,0.03)', paddingTop: '12px', marginTop: '4px' }}>
+                        <div>
+                          {j.proofFilePath ? (
+                            <a 
+                              href={api.getFileUrl(j.proofFilePath)} 
+                              target="_blank" 
+                              rel="noreferrer" 
+                              className="btn btn-secondary"
+                              style={{ padding: '6px 12px', fontSize: '0.75rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', height: '30px' }}
+                            >
+                              <Download size={12} />
+                              <span>Descargar Evidencia</span>
+                            </a>
+                          ) : (
+                            <span style={{ color: 'hsl(var(--text-muted))', fontSize: '0.8rem' }}>Sin prueba adjunta</span>
+                          )}
+                        </div>
+
+                        <div>
+                          {j.status === 'PENDIENTE' ? (
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button 
+                                className="btn btn-secondary" 
+                                style={{ color: 'hsl(142, 71%, 45%)', padding: '6px 12px', fontSize: '0.75rem', height: '30px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} 
+                                onClick={() => handleResolveJustification(j.id, 'APROBADO')}
+                              >
+                                <Check size={12} />
+                                <span>Aprobar</span>
+                              </button>
+                              <button 
+                                className="btn btn-secondary" 
+                                style={{ color: 'hsl(0, 84%, 60%)', padding: '6px 12px', fontSize: '0.75rem', height: '30px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} 
+                                onClick={() => handleResolveJustification(j.id, 'RECHAZADO')}
+                              >
+                                <X size={12} />
+                                <span>Rechazar</span>
+                              </button>
+                            </div>
+                          ) : (
+                            <span style={{ color: 'hsl(var(--text-muted))', fontSize: '0.8rem' }}>Resuelta</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : (
+                /* Desktop Table Layout for Justifications */
                 <div className="table-container">
                   <table className="custom-table">
                     <thead>
