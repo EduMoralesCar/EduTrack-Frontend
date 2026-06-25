@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
-import { CalendarCheck, BookOpen, Calendar, User, CheckCircle, TrendingUp } from 'lucide-react';
+import { CalendarCheck, BookOpen, Calendar, User, CheckCircle, TrendingUp, FileText, Check, X, Upload } from 'lucide-react';
 
 export default function Attendance({ user }) {
   const [sections, setSections] = useState([]);
@@ -11,6 +11,11 @@ export default function Attendance({ user }) {
   
   const [enrollments, setEnrollments] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
+  
+  // Justification states
+  const [justifications, setJustifications] = useState([]);
+  const [activeTab, setActiveTab] = useState('attendance'); // 'attendance' | 'justifications'
+  const [submittingJustification, setSubmittingJustification] = useState(null);
   
   // Custom states for weekly calendar
   const [selectedWeek, setSelectedWeek] = useState(1);
@@ -80,8 +85,55 @@ export default function Attendance({ user }) {
       
       const atts = await api.attendance.getBySection(sectionId);
       setAttendanceRecords(atts || []);
+      if (user.role !== 'STUDENT') {
+        await loadJustifications(sectionId);
+      }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const loadJustifications = async (sectionId) => {
+    if (!sectionId) return;
+    try {
+      const data = await api.attendance.getSectionJustifications(sectionId);
+      setJustifications(data || []);
+    } catch (err) {
+      console.error("Error loading justifications", err);
+    }
+  };
+
+  const handleResolveJustification = async (justificationId, status) => {
+    try {
+      await api.attendance.resolveJustification(justificationId, status);
+      showNotification(`Solicitud de justificación ${status === 'APROBADO' ? 'aprobada' : 'rechazada'} correctamente.`);
+      await loadJustifications(selectedSection);
+      await loadSectionData(selectedSection);
+    } catch (err) {
+      showNotification('Error al resolver justificación: ' + err.message, 'danger');
+    }
+  };
+
+  const handleSubmitJustification = async (e) => {
+    e.preventDefault();
+    if (!submittingJustification) return;
+
+    const attendanceId = submittingJustification.attendanceId;
+    const reason = e.target.elements.reason.value;
+    const proofFile = e.target.elements.proofFile.files[0];
+
+    if (!reason) {
+      showNotification('Por favor ingrese el motivo.', 'danger');
+      return;
+    }
+
+    try {
+      await api.attendance.submitJustification(attendanceId, reason, proofFile);
+      showNotification('Solicitud de justificación enviada correctamente.');
+      setSubmittingJustification(null);
+      await loadSectionData(selectedSection);
+    } catch (err) {
+      showNotification('Error al enviar justificación: ' + err.message, 'danger');
     }
   };
 
@@ -169,14 +221,19 @@ export default function Attendance({ user }) {
     return `${formatDayMonthNum(start)} al ${formatDayMonthNum(end)}`;
   };
 
-  const getStatusForWeek = (studentId, weekNum) => {
+  const getAttendanceRecordForWeek = (studentId, weekNum) => {
     const start = getSemesterStartDate(selectedPeriod);
     const mondayStr = getMondayDateString(start, weekNum);
     const matching = attendanceRecords.filter(att => {
       const isStudentMatch = !studentId || isNaN(studentId) || String(att.studentId) === String(studentId);
       return isStudentMatch && att.date === mondayStr;
     });
-    return matching.length > 0 ? matching[matching.length - 1].status : null; // Get latest status to support updates
+    return matching.length > 0 ? matching[matching.length - 1] : null;
+  };
+
+  const getStatusForWeek = (studentId, weekNum) => {
+    const rec = getAttendanceRecordForWeek(studentId, weekNum);
+    return rec ? rec.status : null;
   };
 
   const handleRecordAttendanceForWeek = async (studentId, weekNum, status) => {
@@ -219,7 +276,7 @@ export default function Attendance({ user }) {
       });
       if (matching.length > 0) {
         const latestRecord = matching[matching.length - 1];
-        if (latestRecord.status === 'PRESENTE') present++;
+        if (latestRecord.status === 'PRESENTE' || latestRecord.status === 'JUSTIFICADO') present++;
         else if (latestRecord.status === 'TARDE') late++;
         else if (latestRecord.status === 'AUSENTE') absent++;
         registeredCount++;
@@ -281,14 +338,14 @@ export default function Attendance({ user }) {
             )}
           </div>
         </div>
-        
-        <div className="table-container">
+            <div className="table-container">
           <table className="custom-table">
             <thead>
               <tr>
                 <th style={{ width: isMobile ? '80px' : '120px' }}>{isMobile ? 'Sem.' : 'Semana'}</th>
                 <th>Rango de Fechas</th>
                 <th style={{ width: '150px', textAlign: 'center' }}>Estado de Asistencia</th>
+                {user.role === 'STUDENT' && <th style={{ width: '180px', textAlign: 'center' }}>Justificación</th>}
                 {user.role === 'TEACHER' && <th style={{ width: '220px', textAlign: 'center' }}>Registrar / Modificar</th>}
               </tr>
             </thead>
@@ -296,7 +353,9 @@ export default function Attendance({ user }) {
               {Array.from({ length: 18 }).map((_, i) => {
                 const weekNum = i + 1;
                 const weekRange = isMobile ? getWeekRangeStringMobile(start, weekNum) : getWeekRangeString(start, weekNum);
-                const status = getStatusForWeek(studentId, weekNum);
+                const rec = getAttendanceRecordForWeek(studentId, weekNum);
+                const status = rec ? rec.status : null;
+                const justificationStatus = rec ? rec.justificationStatus : null;
                 
                 return (
                   <tr key={weekNum}>
@@ -306,8 +365,47 @@ export default function Attendance({ user }) {
                       {status === 'PRESENTE' && <span className="badge" style={{ background: 'hsla(142, 71%, 45%, 0.12)', border: '1px solid hsla(142, 71%, 45%, 0.25)', color: 'hsl(142 80% 80%)' }}>Presente</span>}
                       {status === 'AUSENTE' && <span className="badge" style={{ background: 'hsla(0, 84%, 60%, 0.12)', border: '1px solid hsla(0, 84%, 60%, 0.25)', color: 'hsl(0 90% 85%)' }}>Ausente</span>}
                       {status === 'TARDE' && <span className="badge" style={{ background: 'hsla(38, 92%, 50%, 0.12)', border: '1px solid hsla(38, 92%, 50%, 0.25)', color: 'hsl(38 100% 80%)' }}>Tardanza</span>}
+                      {status === 'JUSTIFICADO' && <span className="badge" style={{ background: 'hsla(180, 71%, 45%, 0.12)', border: '1px solid hsla(180, 71%, 45%, 0.25)', color: 'hsl(180 80% 80%)' }}>Justificado</span>}
                       {!status && <span className="badge" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-light)', color: 'hsl(var(--text-secondary))' }}>PENDIENTE</span>}
                     </td>
+                    {user.role === 'STUDENT' && (
+                      <td style={{ textAlign: 'center' }}>
+                        {status === 'AUSENTE' && (
+                          <>
+                            {!justificationStatus && (
+                              <button 
+                                className="btn btn-secondary" 
+                                style={{ padding: '4px 10px', fontSize: '0.75rem', height: '26px' }}
+                                onClick={() => setSubmittingJustification({ attendanceId: rec.id, weekNum })}
+                              >
+                                Justificar Falta
+                              </button>
+                            )}
+                            {justificationStatus === 'PENDIENTE' && (
+                              <span style={{ fontSize: '0.8rem', color: 'hsl(var(--warning))', fontWeight: '500' }}>Pendiente</span>
+                            )}
+                            {justificationStatus === 'RECHAZADO' && (
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                <span style={{ fontSize: '0.75rem', color: 'hsl(var(--danger))', fontWeight: '500' }}>Rechazada</span>
+                                <button 
+                                  className="btn btn-secondary" 
+                                  style={{ padding: '2px 8px', fontSize: '0.7rem', height: '22px' }}
+                                  onClick={() => setSubmittingJustification({ attendanceId: rec.id, weekNum })}
+                                >
+                                  Reintentar
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                        {status === 'JUSTIFICADO' && (
+                          <span style={{ fontSize: '0.8rem', color: 'hsl(var(--success))', fontWeight: '500' }}>Aprobada</span>
+                        )}
+                        {status !== 'AUSENTE' && status !== 'JUSTIFICADO' && (
+                          <span style={{ color: 'hsl(var(--text-muted))', fontSize: '0.8rem' }}>-</span>
+                        )}
+                      </td>
+                    )}
                     {user.role === 'TEACHER' && (
                       <td>
                         <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
@@ -379,6 +477,53 @@ export default function Attendance({ user }) {
         </div>
       </div>
 
+      {/* Tabs for Teacher/Admin */}
+      {user.role !== 'STUDENT' && (
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-light)', paddingBottom: '12px' }}>
+          <button 
+            onClick={() => setActiveTab('attendance')}
+            className="btn"
+            style={{
+              background: activeTab === 'attendance' ? 'hsla(var(--primary), 0.15)' : 'transparent',
+              borderColor: activeTab === 'attendance' ? 'hsl(var(--primary))' : 'transparent',
+              color: activeTab === 'attendance' ? '#fff' : 'hsl(var(--text-secondary))',
+              borderWidth: '1px',
+              borderStyle: 'solid',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '0.9rem',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            Registro de Asistencia
+          </button>
+          <button 
+            onClick={() => {
+              setActiveTab('justifications');
+              loadJustifications(selectedSection);
+            }}
+            className="btn"
+            style={{
+              background: activeTab === 'justifications' ? 'hsla(var(--primary), 0.15)' : 'transparent',
+              borderColor: activeTab === 'justifications' ? 'hsl(var(--primary))' : 'transparent',
+              color: activeTab === 'justifications' ? '#fff' : 'hsl(var(--text-secondary))',
+              borderWidth: '1px',
+              borderStyle: 'solid',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '0.9rem',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            Solicitudes de Justificación
+          </button>
+        </div>
+      )}
+
       {/* Premium Filter Header */}
       <div style={{
         display: 'grid',
@@ -408,7 +553,7 @@ export default function Attendance({ user }) {
           </select>
         </div>
         
-        {selectedSection && user.role !== 'STUDENT' && (
+        {selectedSection && user.role !== 'STUDENT' && activeTab === 'attendance' && (
           <>
             <div>
               <label className="form-label"><User size={13} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} /> Alumno:</label>
@@ -434,24 +579,110 @@ export default function Attendance({ user }) {
 
       {selectedSection && (
         <div className="fade-in">
-          {/* Main Attendance List (For all students, filtered by week) */}
-          {!selectedStudentFilter && user.role !== 'STUDENT' && (
-            <div style={{ marginBottom: '35px' }}>
+          {activeTab === 'attendance' ? (
+            <>
+              {/* Main Attendance List (For all students, filtered by week) */}
+              {!selectedStudentFilter && user.role !== 'STUDENT' && (
+                <div style={{ marginBottom: '35px' }}>
+                  <div className="flex-between mb-15" style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-light)', padding: '16px 20px', borderRadius: '10px' }}>
+                    <div>
+                      <strong style={{ color: '#fff', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <CheckCircle size={16} style={{ color: 'hsl(var(--primary))' }} />
+                        <span>Semana {selectedWeek}</span>
+                      </strong>
+                      <span style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', display: 'block', marginTop: '2px' }}>
+                        Rango de clase: {currentWeekRangeStr}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {enrollments.length === 0 ? (
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '10px', textAlign: 'center', color: 'hsl(var(--text-muted))', border: '1px solid var(--border-light)' }}>
+                      No hay alumnos matriculados en esta sección.
+                    </div>
+                  ) : (
+                    <div className="table-container">
+                      <table className="custom-table">
+                        <thead>
+                          <tr>
+                            <th>Estudiante</th>
+                            <th style={{ width: '180px', textAlign: 'center' }}>Estado Semana {selectedWeek}</th>
+                            {user.role === 'TEACHER' && <th style={{ width: '220px', textAlign: 'center' }}>Registrar / Modificar</th>}
+                            <th>Récord Acumulado (18 Semanas)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {enrollments.map(enr => {
+                            const weekStatus = getStatusForWeek(enr.studentId, selectedWeek);
+                            const stats = getAttendanceStats(enr.studentId);
+                            
+                            return (
+                              <tr key={enr.id}>
+                                <td style={{ fontWeight: '500' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <User size={14} className="text-muted" />
+                                    <span>{enr.studentUsername}</span>
+                                  </div>
+                                </td>
+                                <td style={{ textAlign: 'center' }}>
+                                  {weekStatus === 'PRESENTE' && <span className="badge" style={{ background: 'hsla(142, 71%, 45%, 0.12)', border: '1px solid hsla(142, 71%, 45%, 0.25)', color: 'hsl(142 80% 80%)' }}>Presente</span>}
+                                  {weekStatus === 'AUSENTE' && <span className="badge" style={{ background: 'hsla(0, 84%, 60%, 0.12)', border: '1px solid hsla(0, 84%, 60%, 0.25)', color: 'hsl(0 90% 85%)' }}>Ausente</span>}
+                                  {weekStatus === 'TARDE' && <span className="badge" style={{ background: 'hsla(38, 92%, 50%, 0.12)', border: '1px solid hsla(38, 92%, 50%, 0.25)', color: 'hsl(38 100% 80%)' }}>Tardanza</span>}
+                                  {weekStatus === 'JUSTIFICADO' && <span className="badge" style={{ background: 'hsla(180, 71%, 45%, 0.12)', border: '1px solid hsla(180, 71%, 45%, 0.25)', color: 'hsl(180 80% 80%)' }}>Justificado</span>}
+                                  {!weekStatus && <span className="badge" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-light)', color: 'hsl(var(--text-secondary))' }}>PENDIENTE</span>}
+                                </td>
+                                {user.role === 'TEACHER' && (
+                                  <td>
+                                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                      <button className="btn btn-secondary" style={{ color: 'hsl(142, 71%, 45%)', padding: '6px 12px', fontSize: '0.85rem', height: '32px' }} onClick={() => handleRecordAttendance(enr.studentId, 'PRESENTE')} title="Presente">P</button>
+                                      <button className="btn btn-secondary" style={{ color: 'hsl(0, 84%, 60%)', padding: '6px 12px', fontSize: '0.85rem', height: '32px' }} onClick={() => handleRecordAttendance(enr.studentId, 'AUSENTE')} title="Ausente">A</button>
+                                      <button className="btn btn-secondary" style={{ color: 'hsl(38, 92%, 50%)', padding: '6px 12px', fontSize: '0.85rem', height: '32px' }} onClick={() => handleRecordAttendance(enr.studentId, 'TARDE')} title="Tardanza">T</button>
+                                    </div>
+                                  </td>
+                                )}
+                                <td>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span className="badge" style={{ 
+                                      background: stats.rate !== '-' ? (parseInt(stats.rate) >= 70 ? 'hsla(142, 71%, 45%, 0.1)' : 'hsla(0, 84%, 60%, 0.1)') : 'rgba(255,255,255,0.02)',
+                                      border: stats.rate !== '-' ? (parseInt(stats.rate) >= 70 ? '1px solid hsla(142, 71%, 45%, 0.2)' : '1px solid hsla(0, 84%, 60%, 0.2)') : '1px solid var(--border-light)',
+                                      color: stats.rate !== '-' ? (parseInt(stats.rate) >= 70 ? 'hsl(142 80% 80%)' : 'hsl(0 90% 85%)') : 'hsl(var(--text-secondary))',
+                                      textTransform: 'none'
+                                    }}>
+                                      {stats.rate !== '-' ? `${stats.rate} Asistido` : 'Sin datos'}
+                                    </span>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Detailed 18 weeks Calendar Table (For specific student filter or student role) */}
+              {studentDetailId && renderWeeklyCalendarTable(parseInt(studentDetailId))}
+            </>
+          ) : (
+            /* Request Justifications View for Teachers */
+            <div style={{ marginBottom: '35px' }} className="fade-in">
               <div className="flex-between mb-15" style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-light)', padding: '16px 20px', borderRadius: '10px' }}>
                 <div>
                   <strong style={{ color: '#fff', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <CheckCircle size={16} style={{ color: 'hsl(var(--primary))' }} />
-                    <span>Semana {selectedWeek}</span>
+                    <FileText size={16} style={{ color: 'hsl(var(--primary))' }} />
+                    <span>Solicitudes de Justificación de Inasistencia</span>
                   </strong>
                   <span style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', display: 'block', marginTop: '2px' }}>
-                    Rango de clase: {currentWeekRangeStr}
+                    Lista de solicitudes enviadas por los estudiantes para esta sección.
                   </span>
                 </div>
               </div>
-              
-              {enrollments.length === 0 ? (
-                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '10px', textAlign: 'center', color: 'hsl(var(--text-muted))', border: '1px solid var(--border-light)' }}>
-                  No hay alumnos matriculados en esta sección.
+
+              {justifications.length === 0 ? (
+                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '30px', borderRadius: '10px', textAlign: 'center', color: 'hsl(var(--text-muted))', border: '1px solid var(--border-light)' }}>
+                  No hay solicitudes de justificación registradas en esta sección.
                 </div>
               ) : (
                 <div className="table-container">
@@ -459,65 +690,166 @@ export default function Attendance({ user }) {
                     <thead>
                       <tr>
                         <th>Estudiante</th>
-                        <th style={{ width: '180px', textAlign: 'center' }}>Estado Semana {selectedWeek}</th>
-                        {user.role === 'TEACHER' && <th style={{ width: '220px', textAlign: 'center' }}>Registrar / Modificar</th>}
-                        <th>Récord Acumulado (18 Semanas)</th>
+                        <th style={{ width: '120px', textAlign: 'center' }}>Fecha Falta</th>
+                        <th>Motivo</th>
+                        <th style={{ width: '140px', textAlign: 'center' }}>Evidencia</th>
+                        <th style={{ width: '120px', textAlign: 'center' }}>Estado</th>
+                        <th style={{ width: '180px', textAlign: 'center' }}>Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {enrollments.map(enr => {
-                        const weekStatus = getStatusForWeek(enr.studentId, selectedWeek);
-                        const stats = getAttendanceStats(enr.studentId);
-                        
-                        return (
-                          <tr key={enr.id}>
-                            <td style={{ fontWeight: '500' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <User size={14} className="text-muted" />
-                                <span>{enr.studentUsername}</span>
-                              </div>
-                            </td>
-                            <td style={{ textAlign: 'center' }}>
-                              {weekStatus === 'PRESENTE' && <span className="badge" style={{ background: 'hsla(142, 71%, 45%, 0.12)', border: '1px solid hsla(142, 71%, 45%, 0.25)', color: 'hsl(142 80% 80%)' }}>Presente</span>}
-                              {weekStatus === 'AUSENTE' && <span className="badge" style={{ background: 'hsla(0, 84%, 60%, 0.12)', border: '1px solid hsla(0, 84%, 60%, 0.25)', color: 'hsl(0 90% 85%)' }}>Ausente</span>}
-                              {weekStatus === 'TARDE' && <span className="badge" style={{ background: 'hsla(38, 92%, 50%, 0.12)', border: '1px solid hsla(38, 92%, 50%, 0.25)', color: 'hsl(38 100% 80%)' }}>Tardanza</span>}
-                              {!weekStatus && <span className="badge" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-light)', color: 'hsl(var(--text-secondary))' }}>PENDIENTE</span>}
-                            </td>
-                            {user.role === 'TEACHER' && (
-                              <td>
-                                <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                                  <button className="btn btn-secondary" style={{ color: 'hsl(142, 71%, 45%)', padding: '6px 12px', fontSize: '0.85rem', height: '32px' }} onClick={() => handleRecordAttendance(enr.studentId, 'PRESENTE')} title="Presente">P</button>
-                                  <button className="btn btn-secondary" style={{ color: 'hsl(0, 84%, 60%)', padding: '6px 12px', fontSize: '0.85rem', height: '32px' }} onClick={() => handleRecordAttendance(enr.studentId, 'AUSENTE')} title="Ausente">A</button>
-                                  <button className="btn btn-secondary" style={{ color: 'hsl(38, 92%, 50%)', padding: '6px 12px', fontSize: '0.85rem', height: '32px' }} onClick={() => handleRecordAttendance(enr.studentId, 'TARDE')} title="Tardanza">T</button>
-                                </div>
-                              </td>
+                      {justifications.map(j => (
+                        <tr key={j.id}>
+                          <td style={{ fontWeight: '500' }}>{j.studentUsername}</td>
+                          <td style={{ textAlign: 'center', color: 'hsl(var(--text-secondary))', fontSize: '0.85rem' }}>{j.attendanceDate}</td>
+                          <td style={{ fontSize: '0.85rem', whiteSpace: 'normal', wordBreak: 'break-word' }}>{j.reason}</td>
+                          <td style={{ textAlign: 'center' }}>
+                            {j.proofFilePath ? (
+                              <a 
+                                href={api.getFileUrl(j.proofFilePath)} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className="btn btn-secondary"
+                                style={{ padding: '4px 8px', fontSize: '0.75rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                <Download size={12} />
+                                <span>Descargar</span>
+                              </a>
+                            ) : (
+                              <span style={{ color: 'hsl(var(--text-muted))', fontSize: '0.8rem' }}>Sin prueba</span>
                             )}
-                            <td>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span className="badge" style={{ 
-                                  background: stats.rate !== '-' ? (parseInt(stats.rate) >= 70 ? 'hsla(142, 71%, 45%, 0.1)' : 'hsla(0, 84%, 60%, 0.1)') : 'rgba(255,255,255,0.02)',
-                                  border: stats.rate !== '-' ? (parseInt(stats.rate) >= 70 ? '1px solid hsla(142, 71%, 45%, 0.2)' : '1px solid hsla(0, 84%, 60%, 0.2)') : '1px solid var(--border-light)',
-                                  color: stats.rate !== '-' ? (parseInt(stats.rate) >= 70 ? 'hsl(142 80% 80%)' : 'hsl(0 90% 85%)') : 'hsl(var(--text-secondary))',
-                                  textTransform: 'none'
-                                }}>
-                                  {stats.rate !== '-' ? `${stats.rate} Asistido` : 'Sin datos'}
-                                </span>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            {j.status === 'PENDIENTE' && <span className="badge" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-light)', color: 'hsl(var(--text-secondary))' }}>Pendiente</span>}
+                            {j.status === 'APROBADO' && <span className="badge" style={{ background: 'hsla(142, 71%, 45%, 0.12)', border: '1px solid hsla(142, 71%, 45%, 0.25)', color: 'hsl(142 80% 80%)' }}>Aprobado</span>}
+                            {j.status === 'RECHAZADO' && <span className="badge" style={{ background: 'hsla(0, 84%, 60%, 0.12)', border: '1px solid hsla(0, 84%, 60%, 0.25)', color: 'hsl(0 90% 85%)' }}>Rechazado</span>}
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            {j.status === 'PENDIENTE' ? (
+                              <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                <button 
+                                  className="btn btn-secondary" 
+                                  style={{ color: 'hsl(142, 71%, 45%)', padding: '4px 8px', fontSize: '0.75rem', height: '28px', display: 'inline-flex', alignItems: 'center', gap: '2px' }} 
+                                  onClick={() => handleResolveJustification(j.id, 'APROBADO')}
+                                >
+                                  <Check size={12} />
+                                  <span>Aprobar</span>
+                                </button>
+                                <button 
+                                  className="btn btn-secondary" 
+                                  style={{ color: 'hsl(0, 84%, 60%)', padding: '4px 8px', fontSize: '0.75rem', height: '28px', display: 'inline-flex', alignItems: 'center', gap: '2px' }} 
+                                  onClick={() => handleResolveJustification(j.id, 'RECHAZADO')}
+                                >
+                                  <X size={12} />
+                                  <span>Rechazar</span>
+                                </button>
                               </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                            ) : (
+                              <span style={{ color: 'hsl(var(--text-muted))', fontSize: '0.8rem' }}>Resuelta</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
               )}
             </div>
           )}
+        </div>
+      )}
 
-          {/* Detailed 18 weeks Calendar Table (For specific student filter or student role) */}
-          {studentDetailId && renderWeeklyCalendarTable(parseInt(studentDetailId))}
+      {/* Student Justification Submission Modal */}
+      {submittingJustification && (
+        <div style={modalOverlayStyle}>
+          <div className="glass-card" style={modalContentStyle}>
+            <div style={modalHeaderStyle}>
+              <h3 style={{ color: '#fff', margin: 0 }}>Solicitar Justificación de Falta</h3>
+            </div>
+            <form onSubmit={handleSubmitJustification}>
+              <p style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', marginBottom: '15px' }}>
+                Estás solicitando justificar tu inasistencia de la **Semana {submittingJustification.weekNum}**.
+              </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Motivo de la Falta</label>
+                  <textarea 
+                    name="reason" 
+                    className="form-input" 
+                    placeholder="Explica detalladamente la razón de tu inasistencia (médica, laboral, etc.)..."
+                    style={{ height: '100px', resize: 'vertical' }}
+                    required 
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Adjuntar Evidencia / Comprobante (Opcional)</label>
+                  <input 
+                    type="file" 
+                    name="proofFile" 
+                    className="form-input" 
+                    style={{ padding: '8px 12px' }} 
+                  />
+                  <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', marginTop: '4px', display: 'block' }}>
+                    Formatos permitidos: PDF, imágenes (PNG, JPG). Máx 20MB.
+                  </span>
+                </div>
+              </div>
+              
+              <div style={modalFooterStyle}>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => setSubmittingJustification(null)}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Enviar Solicitud
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
   );
 }
+
+// Modal styling constants
+const modalOverlayStyle = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: 'rgba(0, 0, 0, 0.75)',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  zIndex: 2000,
+  padding: '20px',
+  backdropFilter: 'blur(8px)',
+};
+
+const modalContentStyle = {
+  width: '100%',
+  maxWidth: '450px',
+  padding: '24px',
+  borderRadius: '16px',
+  border: '1px solid var(--border-light)',
+  background: 'rgba(30, 30, 40, 0.85)',
+  backdropFilter: 'blur(20px)',
+  boxShadow: 'var(--shadow-premium)',
+};
+
+const modalHeaderStyle = {
+  marginBottom: '20px',
+};
+
+const modalFooterStyle = {
+  display: 'flex',
+  justifyContent: 'flex-end',
+  gap: '12px',
+  marginTop: '20px',
+};

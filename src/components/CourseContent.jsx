@@ -47,6 +47,7 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
   const [materialToDelete, setMaterialToDelete] = useState(null);
   const [materialNameToDelete, setMaterialNameToDelete] = useState('');
   const [editingAssignment, setEditingAssignment] = useState(null);
+  const [editingMaterial, setEditingMaterial] = useState(null);
   
   // States for inline preview
   const [previewFileUrl, setPreviewFileUrl] = useState(null);
@@ -277,6 +278,35 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
     }
   };
 
+  const handleUpdateMaterial = async (e) => {
+    e.preventDefault();
+    if (!editingMaterial) return;
+
+    const id = editingMaterial.id;
+    const title = e.target.elements.title.value;
+    const file = e.target.elements.file?.files?.[0];
+
+    if (!title) {
+      showNotification('El título es requerido.', 'danger');
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('title', title);
+      if (file) {
+        formData.append('file', file);
+      }
+
+      await api.materials.update(id, formData);
+      showNotification('Material actualizado con éxito.');
+      setEditingMaterial(null);
+      fetchCourseData(selectedSection);
+    } catch (err) {
+      showNotification('Error al actualizar material: ' + err.message, 'danger');
+    }
+  };
+
   const handleFileChange = (assignmentId, file) => {
     setSubmissionFiles(prev => ({
       ...prev,
@@ -501,6 +531,14 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                               title={m.visible ? "Ocultar a estudiantes" : "Mostrar a estudiantes"}
                             >
                               {m.visible ? <EyeOff size={14} /> : <Eye size={14} style={{ color: 'hsl(var(--warning))' }} />}
+                            </button>
+                            <button 
+                              onClick={() => setEditingMaterial(m)}
+                              className="btn btn-secondary"
+                              style={{ padding: '6px 10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center' }}
+                              title="Editar material"
+                            >
+                              <Edit size={14} />
                             </button>
                             <button 
                               onClick={() => handleDeleteMaterialClick(m.id, m.title)}
@@ -1326,6 +1364,46 @@ export default function CourseContent({ user, preSelectedSectionId = null, onBac
                 type="submit" 
                 className="btn btn-primary"
               >
+                Guardar Cambios
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
+
+    {/* Custom Modal for Editing Material */}
+    {editingMaterial && (
+      <div style={styles.modalOverlay}>
+        <div className="glass-card" style={{ ...styles.modalContent, maxWidth: '500px' }}>
+          <div style={styles.modalHeader}>
+            <h3 style={{ color: '#fff', margin: 0 }}>Editar Material de Clase</h3>
+          </div>
+          <form onSubmit={handleUpdateMaterial}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Título del Material</label>
+                <input name="title" defaultValue={editingMaterial.title} className="form-input" required />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Reemplazar Archivo (Opcional)</label>
+                {editingMaterial.filePath && (
+                  <div style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', marginBottom: '4px' }}>
+                    Archivo actual: {editingMaterial.filePath.substring(editingMaterial.filePath.lastIndexOf('/') + 1)}
+                  </div>
+                )}
+                <input type="file" name="file" className="form-input" style={{ padding: '8px 12px' }} />
+              </div>
+            </div>
+            <div style={styles.modalFooter}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => setEditingMaterial(null)}
+              >
+                Cancelar
+              </button>
+              <button type="submit" className="btn btn-primary">
                 Guardar Cambios
               </button>
             </div>
