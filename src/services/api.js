@@ -249,6 +249,10 @@ export const api = {
         body: formData,
       });
     },
+    update: (id, formData) => request(`/materials/${id}`, {
+      method: 'PUT',
+      body: formData,
+    }),
     getBySection: (sectionId) => request(`/materials/section/${sectionId}`),
     delete: (id) => request(`/materials/${id}`, {
       method: 'DELETE',
@@ -277,6 +281,7 @@ export const api = {
     },
     resolveJustification: (justificationId, status) => request(`/attendance/justifications/${justificationId}/resolve?status=${status}`, {
       method: 'PUT',
-    })
+    }),
+    getSectionJustifications: (sectionId) => request(`/attendance/section/${sectionId}/justifications`)
   }
 };
