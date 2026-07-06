@@ -24,6 +24,7 @@ import Grades from './Grades';
 import Attendance from './Attendance';
 import CourseContent from './CourseContent';
 import Assignments from './Assignments';
+import Reports from './Reports';
 
 export default function Dashboard({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('courses');
@@ -65,6 +66,87 @@ export default function Dashboard({ user, onLogout }) {
     checkBackend();
   }, []);
 
+  const [studentSummary, setStudentSummary] = useState({
+    gpa: null,
+    attendanceRate: null,
+    status: 'ENROLLED',
+    loading: false
+  });
+
+  useEffect(() => {
+    if (user.role !== 'STUDENT') return;
+    
+    const loadStudentSummary = async () => {
+      setStudentSummary(prev => ({ ...prev, loading: true }));
+      try {
+        const myEnrollments = await api.enrollments.getMyEnrollments();
+        
+        let totalGradesSum = 0;
+        let gradedSectionsCount = 0;
+        let totalPresent = 0;
+        let totalSessions = 0;
+        let isAtRisk = false;
+        let activeStatus = 'ENROLLED';
+
+        for (const enr of myEnrollments) {
+          if (enr.status === 'AT_RISK') {
+            isAtRisk = true;
+          }
+          if (enr.status === 'WITHDRAWN' && activeStatus !== 'AT_RISK') {
+            activeStatus = 'WITHDRAWN';
+          }
+          
+          // Grades
+          try {
+            const finalGrades = await api.grades.getFinalGrades(enr.sectionId);
+            if (finalGrades && finalGrades.length > 0) {
+              const myGrade = finalGrades[0];
+              if (myGrade.finalAverage != null) {
+                totalGradesSum += myGrade.finalAverage;
+                gradedSectionsCount++;
+              }
+            }
+          } catch (e) {
+            console.error("Error loading final grade for section " + enr.sectionId, e);
+          }
+
+          // Attendance
+          try {
+            const sectionAttendance = await api.attendance.getBySection(enr.sectionId);
+            if (sectionAttendance && sectionAttendance.length > 0) {
+              totalSessions += sectionAttendance.length;
+              const presentCount = sectionAttendance.filter(a => 
+                a.status === 'PRESENTE' || a.status === 'TARDE' || a.status === 'JUSTIFICADO'
+              ).length;
+              totalPresent += presentCount;
+            }
+          } catch (e) {
+            console.error("Error loading attendance for section " + enr.sectionId, e);
+          }
+        }
+        
+        if (isAtRisk) {
+          activeStatus = 'AT_RISK';
+        }
+
+        const gpa = gradedSectionsCount > 0 ? (totalGradesSum / gradedSectionsCount) : null;
+        const attendanceRate = totalSessions > 0 ? (totalPresent / totalSessions) : null;
+
+        setStudentSummary({
+          gpa: gpa != null ? Math.round(gpa * 100) / 100 : null,
+          attendanceRate: attendanceRate != null ? Math.round(attendanceRate * 10000) / 100 : null,
+          status: activeStatus,
+          loading: false
+        });
+      } catch (e) {
+        console.error("Error loading student summary:", e);
+        setStudentSummary(prev => ({ ...prev, loading: false }));
+      }
+    };
+
+    loadStudentSummary();
+  }, [user.role]);
+
   const handleLogoutClick = () => {
     api.auth.logout();
     onLogout();
@@ -79,6 +161,7 @@ export default function Dashboard({ user, onLogout }) {
         { id: 'sections', label: 'Secciones', icon: <Layers size={20} /> },
         { id: 'enrollments', label: 'Matrículas', icon: <UserCheck size={20} /> },
         { id: 'users', label: 'Usuarios', icon: <UsersIcon size={20} /> },
+        { id: 'reports', label: 'Reportes', icon: <FileText size={20} /> },
       ];
     } else if (role === 'TEACHER') {
       return [
@@ -117,6 +200,8 @@ export default function Dashboard({ user, onLogout }) {
         return <Grades user={user} />;
       case 'attendance':
         return <Attendance user={user} />;
+      case 'reports':
+        return <Reports user={user} />;
       default:
         return <Courses user={user} />;
     }
@@ -271,9 +356,109 @@ export default function Dashboard({ user, onLogout }) {
         width: isMobile ? '100%' : (sidebarOpen ? 'calc(100vw - 280px)' : '100%'),
         paddingTop: isMobile ? '80px' : '40px',
       }}>
+        {/* Top Header Bar */}
+        <header style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: isMobile ? '0 15px' : '0 40px',
+          marginBottom: '20px',
+          boxSizing: 'border-box',
+          width: '100%'
+        }}>
+          <h2 style={{ fontSize: isMobile ? '1.4rem' : '1.8rem', fontWeight: '700', color: '#fff', fontFamily: 'var(--font-heading)' }}>
+            {activeTab === 'courses' ? 'Catálogo de Cursos' :
+             activeTab === 'sections' ? 'Secciones de Clase' :
+             activeTab === 'enrollments' ? 'Matrículas Académicas' :
+             activeTab === 'users' ? 'Gestión de Usuarios' :
+             activeTab === 'grades' ? 'Control de Calificaciones' :
+             activeTab === 'attendance' ? 'Control de Asistencias' :
+             activeTab === 'reports' ? 'Reportes Académicos' : 'Panel de Control'}
+          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {user.role === 'STUDENT' && <NotificationTray />}
+            <span style={{ fontSize: '0.9rem', color: 'hsl(var(--text-secondary))', fontWeight: '500' }}>
+              {user.username}
+            </span>
+          </div>
+        </header>
+
+        {/* Student Summary Cards (RF12) */}
+        {user.role === 'STUDENT' && activeTab === 'courses' && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+            gap: '20px',
+            padding: isMobile ? '0 15px 20px 15px' : '0 40px 20px 40px',
+            boxSizing: 'border-box',
+            width: '100%'
+          }}>
+            <div className="glass-card" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
+              <div style={{ background: 'hsla(263, 90%, 51%, 0.15)', color: 'hsl(263, 90%, 65%)', padding: '12px', borderRadius: '50%' }}>
+                <Award size={24} />
+              </div>
+              <div>
+                <span style={{ fontSize: '0.78rem', color: 'hsl(var(--text-muted))', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Promedio General</span>
+                <span style={{ fontSize: '1.6rem', fontWeight: '700', color: '#fff' }}>
+                  {studentSummary.loading ? '...' : (studentSummary.gpa != null ? studentSummary.gpa.toFixed(2) : 'Sin notas')}
+                </span>
+              </div>
+            </div>
+
+            <div className="glass-card" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
+              <div style={{ background: 'hsla(142, 71%, 45%, 0.15)', color: 'hsl(142, 71%, 55%)', padding: '12px', borderRadius: '50%' }}>
+                <CalendarCheck size={24} />
+              </div>
+              <div style={{ flexGrow: 1 }}>
+                <span style={{ fontSize: '0.78rem', color: 'hsl(var(--text-muted))', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Asistencia Promedio</span>
+                <span style={{ fontSize: '1.6rem', fontWeight: '700', color: '#fff' }}>
+                  {studentSummary.loading ? '...' : (studentSummary.attendanceRate != null ? `${studentSummary.attendanceRate.toFixed(1)}%` : 'Sin registro')}
+                </span>
+                {studentSummary.attendanceRate != null && (
+                  <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', marginTop: '8px', overflow: 'hidden' }}>
+                    <div style={{ 
+                      width: `${studentSummary.attendanceRate}%`, 
+                      height: '100%', 
+                      background: studentSummary.attendanceRate < 70.0 ? 'hsl(0, 84%, 60%)' : 'hsl(142, 71%, 45%)',
+                      borderRadius: '3px',
+                      transition: 'width 0.5s ease'
+                    }}></div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="glass-card" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
+              <div style={{ 
+                background: studentSummary.status === 'AT_RISK' ? 'hsla(0, 84%, 60%, 0.15)' : (studentSummary.status === 'WITHDRAWN' ? 'rgba(255,255,255,0.05)' : 'hsla(142, 71%, 45%, 0.15)'), 
+                color: studentSummary.status === 'AT_RISK' ? 'hsl(0, 84%, 65%)' : (studentSummary.status === 'WITHDRAWN' ? 'hsl(var(--text-muted))' : 'hsl(142, 71%, 55%)'), 
+                padding: '12px', 
+                borderRadius: '50%' 
+              }}>
+                <Activity size={24} />
+              </div>
+              <div>
+                <span style={{ fontSize: '0.78rem', color: 'hsl(var(--text-muted))', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estado Académico</span>
+                <span style={{ fontSize: '1.2rem', fontWeight: '700', color: '#fff', display: 'block', marginTop: '4px' }}>
+                  {studentSummary.loading ? '...' : (
+                    studentSummary.status === 'AT_RISK' ? (
+                      <span className="badge badge-admin" style={{ padding: '4px 10px', fontSize: '0.8rem' }}>OBSERVADO</span>
+                    ) : studentSummary.status === 'WITHDRAWN' ? (
+                      <span className="badge" style={{ padding: '4px 10px', fontSize: '0.8rem', backgroundColor: 'rgba(255,255,255,0.1)', color: '#aaa' }}>RETIRADO</span>
+                    ) : (
+                      <span className="badge badge-teacher" style={{ padding: '4px 10px', fontSize: '0.8rem', backgroundColor: 'hsla(142, 71%, 45%, 0.2)', color: 'hsl(142, 71%, 55%)' }}>ACTIVO</span>
+                    )
+                  )}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div style={{
           ...styles.contentWrapper,
           padding: isMobile ? '20px 15px' : '40px',
+          paddingTop: '0px'
         }}>
           {renderActiveComponent()}
         </div>
@@ -467,3 +652,156 @@ const styles = {
     boxSizing: 'border-box',
   }
 };
+
+function NotificationTray() {
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const fetchNotifications = async () => {
+    try {
+      const data = await api.notifications.getAll();
+      setNotifications(data);
+      const countData = await api.notifications.getUnreadCount();
+      setUnreadCount(countData.unreadCount);
+    } catch (e) {
+      console.error("Error fetching notifications:", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 20000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await api.notifications.markAllAsRead();
+      fetchNotifications();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleMarkAsRead = async (id) => {
+    try {
+      await api.notifications.markAsRead(id);
+      fetchNotifications();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button 
+        onClick={() => setIsOpen(!isOpen)} 
+        style={{
+          background: 'transparent',
+          border: 'none',
+          color: '#fff',
+          cursor: 'pointer',
+          position: 'relative',
+          padding: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-bell"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        {unreadCount > 0 && (
+          <span style={{
+            position: 'absolute',
+            top: '2px',
+            right: '2px',
+            background: 'hsl(0, 84%, 60%)',
+            color: '#fff',
+            borderRadius: '50%',
+            width: '16px',
+            height: '16px',
+            fontSize: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 'bold',
+            boxShadow: '0 0 5px rgba(0,0,0,0.5)'
+          }}>
+            {unreadCount}
+          </span>
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="glass-card" style={{
+          position: 'absolute',
+          top: '40px',
+          right: '0',
+          width: '320px',
+          maxHeight: '400px',
+          overflowY: 'auto',
+          zIndex: 1000,
+          padding: '16px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+          border: '1px solid var(--border-light)',
+          boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+          borderRadius: '12px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', paddingBottom: '8px' }}>
+            <span style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>Alertas Académicas</span>
+            {unreadCount > 0 && (
+              <button 
+                onClick={handleMarkAllAsRead} 
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'hsl(263, 90%, 65%)',
+                  fontSize: '0.75rem',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                Marcar todas
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {notifications.length === 0 ? (
+              <div style={{ fontSize: '0.85rem', color: 'hsl(var(--text-muted))', textAlign: 'center', padding: '12px 0' }}>
+                No tienes notificaciones
+              </div>
+            ) : (
+              notifications.map(n => (
+                <div 
+                  key={n.id} 
+                  onClick={() => !n.read && handleMarkAsRead(n.id)}
+                  style={{
+                    padding: '10px',
+                    borderRadius: '8px',
+                    backgroundColor: n.read ? 'rgba(255,255,255,0.01)' : 'rgba(255,255,255,0.04)',
+                    borderLeft: n.read ? '3px solid transparent' : '3px solid hsl(263, 90%, 51%)',
+                    cursor: n.read ? 'default' : 'pointer',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}
+                >
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: n.read ? 'hsl(var(--text-secondary))' : '#fff', lineHeight: '1.3' }}>
+                    {n.message}
+                  </p>
+                  <span style={{ fontSize: '0.65rem', color: 'hsl(var(--text-muted))' }}>
+                    {new Date(n.createdAt).toLocaleString('es-PE', { hour12: true, month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
