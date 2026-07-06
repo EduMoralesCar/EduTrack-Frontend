@@ -152,6 +152,9 @@ export const api = {
     delete: (id) => request(`/users/${id}`, {
       method: 'DELETE',
     }),
+    changePassword: (newPassword) => request(`/users/change-password?newPassword=${encodeURIComponent(newPassword)}`, {
+      method: 'PUT',
+    }),
   },
   
   courses: {
