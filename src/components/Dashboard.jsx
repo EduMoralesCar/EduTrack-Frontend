@@ -441,7 +441,7 @@ export default function Dashboard({ user, onLogout }) {
               </button>
 
               {profileMenuOpen && (
-                <div className="glass-card" style={{
+                <div style={{
                   position: 'absolute',
                   top: '42px',
                   right: '0',
@@ -454,6 +454,7 @@ export default function Dashboard({ user, onLogout }) {
                   borderRadius: '12px',
                   border: '1px solid var(--border-light)',
                   boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                  backgroundColor: '#12121a', // Solid dark background to prevent overlap bleed-through
                 }}>
                   <div style={{ padding: '4px 8px 8px 8px', borderBottom: '1px solid var(--border-light)', marginBottom: '4px', textAlign: 'left' }}>
                     <div style={{ fontWeight: '700', fontSize: '0.88rem', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.username}</div>
