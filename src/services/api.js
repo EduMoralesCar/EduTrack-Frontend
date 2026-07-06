@@ -201,6 +201,9 @@ export const api = {
     unenroll: (enrollmentId) => request(`/enrollments/${enrollmentId}`, {
       method: 'DELETE',
     }),
+    updateStatus: (enrollmentId, status) => request(`/enrollments/${enrollmentId}/status?status=${status}`, {
+      method: 'PUT',
+    }),
   },
 
   assignments: {
@@ -283,5 +286,16 @@ export const api = {
       method: 'PUT',
     }),
     getSectionJustifications: (sectionId) => request(`/attendance/section/${sectionId}/justifications`)
+  },
+  
+  notifications: {
+    getAll: () => request('/notifications'),
+    getUnreadCount: () => request('/notifications/unread-count'),
+    markAsRead: (id) => request(`/notifications/${id}/read`, { method: 'PUT' }),
+    markAllAsRead: () => request('/notifications/read-all', { method: 'PUT' }),
+  },
+  
+  reports: {
+    getAcademicReport: () => request('/reports/academic'),
   }
 };
