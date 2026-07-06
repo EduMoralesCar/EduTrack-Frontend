@@ -14,7 +14,8 @@ import {
   FileText,
   Award,
   CalendarCheck,
-  Book
+  Book,
+  GraduationCap
 } from 'lucide-react';
 import Users from './Users';
 import Courses from './Courses';
@@ -312,7 +313,7 @@ export default function Dashboard({ user, onLogout }) {
       >
         <div style={styles.sidebarHeader}>
           <div style={styles.sidebarLogo}>
-            <div style={styles.logoDot}></div>
+            <GraduationCap size={24} style={{ color: 'hsl(263, 90%, 60%)' }} />
             <span style={styles.logoText}>Edu<span style={styles.logoTextAccent}>Track</span></span>
           </div>
         </div>
