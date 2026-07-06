@@ -73,6 +73,42 @@ export default function Dashboard({ user, onLogout }) {
     loading: false
   });
 
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [settingsError, setSettingsError] = useState('');
+  const [settingsSuccess, setSettingsSuccess] = useState('');
+  const [settingsLoading, setSettingsLoading] = useState(false);
+
+  const handlePasswordChangeSubmit = async (e) => {
+    e.preventDefault();
+    setSettingsError('');
+    setSettingsSuccess('');
+    
+    if (newPassword.length < 6) {
+      setSettingsError('La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      setSettingsError('Las contraseñas no coinciden');
+      return;
+    }
+    
+    setSettingsLoading(true);
+    try {
+      await api.users.changePassword(newPassword);
+      setSettingsSuccess('Contraseña actualizada exitosamente');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setSettingsError(err.message || 'Error al actualizar la contraseña');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (user.role !== 'STUDENT') return;
     
@@ -281,17 +317,7 @@ export default function Dashboard({ user, onLogout }) {
           </div>
         </div>
 
-        {/* User Profile Widget */}
-        <div style={styles.profileWidget}>
-          <div style={styles.avatar}>
-            {user.username ? user.username.substring(0, 2).toUpperCase() : 'US'}
-          </div>
-          <div style={styles.profileDetails}>
-            <div style={styles.username}>{user.username}</div>
-            <div style={styles.email}>{user.email || `${user.username}@edutrack.edu`}</div>
-            <div style={styles.badgeContainer}>{getRoleBadge(user.role)}</div>
-          </div>
-        </div>
+
 
         {/* Navigation Tabs */}
         <nav style={styles.navMenu}>
@@ -377,9 +403,124 @@ export default function Dashboard({ user, onLogout }) {
           </h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             {user.role === 'STUDENT' && <NotificationTray />}
-            <span style={{ fontSize: '0.9rem', color: 'hsl(var(--text-secondary))', fontWeight: '500' }}>
-              {user.username}
-            </span>
+            
+            {/* User Profile Dropdown Menu */}
+            <div style={{ position: 'relative' }}>
+              <button 
+                onClick={() => setProfileMenuOpen(!profileMenuOpen)} 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid var(--border-light)',
+                  borderRadius: '20px',
+                  padding: '6px 14px',
+                  cursor: 'pointer',
+                  color: '#fff',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <div style={{
+                  width: '26px',
+                  height: '26px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, hsl(263, 90%, 51%), hsl(220, 90%, 51%))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  fontSize: '0.78rem',
+                  color: '#fff'
+                }}>
+                  {user.username ? user.username.substring(0, 2).toUpperCase() : 'US'}
+                </div>
+                <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{user.username}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'transform 0.2s', transform: profileMenuOpen ? 'rotate(180deg)' : 'rotate(0)' }}><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+
+              {profileMenuOpen && (
+                <div className="glass-card" style={{
+                  position: 'absolute',
+                  top: '42px',
+                  right: '0',
+                  width: '240px',
+                  zIndex: 999,
+                  padding: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border-light)',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                }}>
+                  <div style={{ padding: '4px 8px 8px 8px', borderBottom: '1px solid var(--border-light)', marginBottom: '4px', textAlign: 'left' }}>
+                    <div style={{ fontWeight: '700', fontSize: '0.88rem', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.username}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}>{user.email || `${user.username}@edutrack.edu`}</div>
+                    <div style={{ marginTop: '6px' }}>
+                      {user.role === 'ADMIN' ? (
+                        <span className="badge badge-admin" style={{ fontSize: '0.68rem', padding: '2px 8px' }}>ADMINISTRADOR</span>
+                      ) : user.role === 'TEACHER' ? (
+                        <span className="badge badge-teacher" style={{ fontSize: '0.68rem', padding: '2px 8px' }}>DOCENTE</span>
+                      ) : (
+                        <span className="badge badge-student" style={{ fontSize: '0.68rem', padding: '2px 8px' }}>ESTUDIANTE</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={() => {
+                      setProfileMenuOpen(false);
+                      setShowSettingsModal(true);
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'hsl(var(--text-secondary))',
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      fontSize: '0.82rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      width: '100%',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.03)'}
+                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <span>Mi Perfil y Seguridad</span>
+                  </button>
+
+                  <button 
+                    onClick={handleLogoutClick}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'hsl(0, 84%, 65%)',
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      fontSize: '0.82rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      width: '100%',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = 'rgba(239, 68, 68, 0.05)'}
+                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                    <span>Cerrar Sesión</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -463,6 +604,127 @@ export default function Dashboard({ user, onLogout }) {
           {renderActiveComponent()}
         </div>
       </main>
+
+      {/* Settings Modal (Change Password) */}
+      {showSettingsModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+          padding: '20px',
+          boxSizing: 'border-box'
+        }}>
+          <div className="glass-card" style={{
+            width: '100%',
+            maxWidth: '450px',
+            padding: '28px',
+            borderRadius: '16px',
+            border: '1px solid var(--border-light)',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
+            position: 'relative'
+          }}>
+            <button 
+              onClick={() => {
+                setShowSettingsModal(false);
+                setSettingsError('');
+                setSettingsSuccess('');
+              }}
+              style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                background: 'transparent',
+                border: 'none',
+                color: 'hsl(var(--text-muted))',
+                fontSize: '1.25rem',
+                cursor: 'pointer'
+              }}
+            >
+              ✕
+            </button>
+            
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.3rem', fontWeight: '700', color: '#fff' }}>Mi Perfil y Seguridad</h3>
+            <p style={{ margin: '0 0 24px 0', fontSize: '0.85rem', color: 'hsl(var(--text-muted))' }}>Consulta tu información institucional y actualiza tus credenciales de acceso.</p>
+            
+            {settingsError && (
+              <div className="alert alert-danger" style={{ marginBottom: '16px', padding: '10px 14px', borderRadius: '8px', fontSize: '0.82rem' }}>
+                {settingsError}
+              </div>
+            )}
+            
+            {settingsSuccess && (
+              <div className="alert alert-success" style={{ marginBottom: '16px', padding: '10px 14px', borderRadius: '8px', fontSize: '0.82rem' }}>
+                {settingsSuccess}
+              </div>
+            )}
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div>
+                  <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))', display: 'block', textTransform: 'uppercase' }}>Nombre de usuario</span>
+                  <span style={{ fontSize: '0.85rem', color: '#fff', fontWeight: '600' }}>{user.username}</span>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))', display: 'block', textTransform: 'uppercase' }}>Rol asignado</span>
+                  <span style={{ fontSize: '0.85rem', color: 'hsl(263, 90%, 75%)', fontWeight: '600' }}>{user.role}</span>
+                </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))', display: 'block', textTransform: 'uppercase' }}>Correo Electrónico</span>
+                  <span style={{ fontSize: '0.85rem', color: '#fff', fontWeight: '600' }}>{user.email || `${user.username}@edutrack.edu`}</span>
+                </div>
+              </div>
+              
+              <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: '4px 0' }} />
+              
+              <form onSubmit={handlePasswordChangeSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontSize: '0.8rem', marginBottom: '6px', display: 'block' }}>Nueva Contraseña</label>
+                  <input 
+                    type="password" 
+                    className="form-input" 
+                    placeholder="Mínimo 6 caracteres"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    style={{ fontSize: '0.85rem', padding: '10px' }}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label" style={{ fontSize: '0.8rem', marginBottom: '6px', display: 'block' }}>Confirmar Nueva Contraseña</label>
+                  <input 
+                    type="password" 
+                    className="form-input" 
+                    placeholder="Repite la contraseña"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    style={{ fontSize: '0.85rem', padding: '10px' }}
+                  />
+                </div>
+                
+                <button 
+                  type="submit" 
+                  className="btn btn-primary" 
+                  disabled={settingsLoading}
+                  style={{ width: '100%', padding: '10px', fontSize: '0.88rem', marginTop: '8px', justifyContent: 'center' }}
+                >
+                  {settingsLoading ? 'Guardando...' : 'Actualizar Contraseña'}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

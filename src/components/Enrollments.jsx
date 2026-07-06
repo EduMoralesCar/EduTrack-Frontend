@@ -301,9 +301,9 @@ export default function Enrollments({ user }) {
                               width: '110px'
                             }}
                           >
-                            <option value="ENROLLED">ACTIVO</option>
-                            <option value="AT_RISK">OBSERVADO</option>
-                            <option value="WITHDRAWN">RETIRADO</option>
+                            <option value="ENROLLED" style={{ backgroundColor: '#1e1e2f', color: '#fff' }}>ACTIVO</option>
+                            <option value="AT_RISK" style={{ backgroundColor: '#1e1e2f', color: '#fff' }}>OBSERVADO</option>
+                            <option value="WITHDRAWN" style={{ backgroundColor: '#1e1e2f', color: '#fff' }}>RETIRADO</option>
                           </select>
                         ) : (
                           <span style={
@@ -384,9 +384,9 @@ export default function Enrollments({ user }) {
                                 width: '130px',
                               }}
                             >
-                              <option value="ENROLLED">ACTIVO</option>
-                              <option value="AT_RISK">OBSERVADO</option>
-                              <option value="WITHDRAWN">RETIRADO</option>
+                              <option value="ENROLLED" style={{ backgroundColor: '#1e1e2f', color: '#fff' }}>ACTIVO</option>
+                              <option value="AT_RISK" style={{ backgroundColor: '#1e1e2f', color: '#fff' }}>OBSERVADO</option>
+                              <option value="WITHDRAWN" style={{ backgroundColor: '#1e1e2f', color: '#fff' }}>RETIRADO</option>
                             </select>
                           ) : (
                             <span style={
