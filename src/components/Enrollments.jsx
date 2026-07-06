@@ -275,10 +275,44 @@ export default function Enrollments({ user }) {
                         <div style={styles.mobileCardSubtitle}>Matrícula: #{enr.id} • Alumno: ID-{enr.studentId}</div>
                       </div>
                       <div>
-                        <span style={styles.enrolledStatus}>
-                          <CheckCircle size={13} style={{ marginRight: '4px', verticalAlign: 'middle', display: 'inline' }} />
-                          {enr.status || 'ENROLLED'}
-                        </span>
+                        {isAdmin || isTeacher ? (
+                          <select
+                            value={enr.status || 'ENROLLED'}
+                            onChange={async (e) => {
+                              const newStatus = e.target.value;
+                              try {
+                                setError('');
+                                setSuccess('');
+                                await api.enrollments.updateStatus(enr.id, newStatus);
+                                setSuccess(`Estado de ${enr.studentUsername} actualizado a ${newStatus}`);
+                                fetchEnrollments(selectedSectionId);
+                              } catch (err) {
+                                setError(err.message || 'Error al actualizar el estado');
+                              }
+                            }}
+                            className="form-input form-select"
+                            style={{
+                              padding: '4px 6px',
+                              fontSize: '0.8rem',
+                              background: 'rgba(255,255,255,0.05)',
+                              color: '#fff',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              borderRadius: '6px',
+                              width: '110px'
+                            }}
+                          >
+                            <option value="ENROLLED">ACTIVO</option>
+                            <option value="AT_RISK">OBSERVADO</option>
+                            <option value="WITHDRAWN">RETIRADO</option>
+                          </select>
+                        ) : (
+                          <span style={
+                            enr.status === 'AT_RISK' ? { ...styles.enrolledStatus, color: 'hsl(0, 84%, 65%)' } :
+                            enr.status === 'WITHDRAWN' ? { ...styles.enrolledStatus, color: '#aaa' } : styles.enrolledStatus
+                          }>
+                            {enr.status === 'AT_RISK' ? 'OBSERVADO' : (enr.status === 'WITHDRAWN' ? 'RETIRADO' : 'ACTIVO')}
+                          </span>
+                        )}
                       </div>
                     </div>
                     {isAdmin && (
@@ -323,10 +357,46 @@ export default function Enrollments({ user }) {
                         <td>ID-{enr.studentId}</td>
                         <td style={{ fontWeight: '600' }}>{enr.studentUsername}</td>
                         <td>
-                          <span style={styles.enrolledStatus}>
-                            <CheckCircle size={14} style={{ marginRight: '4px' }} />
-                            {enr.status || 'ENROLLED'}
-                          </span>
+                          {isAdmin || isTeacher ? (
+                            <select
+                              value={enr.status || 'ENROLLED'}
+                              onChange={async (e) => {
+                                const newStatus = e.target.value;
+                                try {
+                                  setError('');
+                                  setSuccess('');
+                                  await api.enrollments.updateStatus(enr.id, newStatus);
+                                  setSuccess(`Estado del alumno ${enr.studentUsername} actualizado a ${newStatus}`);
+                                  fetchEnrollments(selectedSectionId);
+                                } catch (err) {
+                                  setError(err.message || 'Error al actualizar el estado académico');
+                                }
+                              }}
+                              className="form-input form-select"
+                              style={{
+                                padding: '4px 8px',
+                                fontSize: '0.85rem',
+                                background: 'rgba(255,255,255,0.05)',
+                                color: '#fff',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                width: '130px',
+                              }}
+                            >
+                              <option value="ENROLLED">ACTIVO</option>
+                              <option value="AT_RISK">OBSERVADO</option>
+                              <option value="WITHDRAWN">RETIRADO</option>
+                            </select>
+                          ) : (
+                            <span style={
+                              enr.status === 'AT_RISK' ? { ...styles.enrolledStatus, color: 'hsl(0, 84%, 65%)' } :
+                              enr.status === 'WITHDRAWN' ? { ...styles.enrolledStatus, color: '#aaa' } : styles.enrolledStatus
+                            }>
+                              <CheckCircle size={14} style={{ marginRight: '4px' }} />
+                              {enr.status === 'AT_RISK' ? 'OBSERVADO' : (enr.status === 'WITHDRAWN' ? 'RETIRADO' : 'ACTIVO')}
+                            </span>
+                          )}
                         </td>
                         {isAdmin && (
                           <td style={{ textAlign: 'right' }}>
