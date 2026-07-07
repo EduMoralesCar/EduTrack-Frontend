@@ -997,7 +997,7 @@ function NotificationTray() {
       </button>
 
       {isOpen && (
-        <div className="glass-card" style={{
+        <div style={{
           position: 'absolute',
           top: '40px',
           right: '0',
@@ -1011,7 +1011,8 @@ function NotificationTray() {
           gap: '12px',
           border: '1px solid var(--border-light)',
           boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-          borderRadius: '12px'
+          borderRadius: '12px',
+          backgroundColor: '#12121a', // Solid background to prevent bleed-through
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', paddingBottom: '8px' }}>
             <span style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>Alertas Académicas</span>
