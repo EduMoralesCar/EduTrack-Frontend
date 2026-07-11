@@ -11,7 +11,7 @@ export const getBaseUrl = () => {
   if (import.meta.env.DEV) {
     return 'http://localhost:8081/api';
   }
-  const prodDefault = 'https://edutrack-backend-1nvs.onrender.com';
+  const prodDefault = 'http://13.59.189.231';
   return `${prodDefault}/api`;
 };
 
@@ -31,7 +31,7 @@ export const getFileUrl = (filePath) => {
   if (envUrl) {
     base = envUrl.endsWith('/') ? envUrl : `${envUrl}/`;
   } else if (!import.meta.env.DEV) {
-    base = 'https://edutrack-backend-1nvs.onrender.com/';
+    base = 'http://13.59.189.231/';
   }
   return `${base}${filePath}`;
 };
