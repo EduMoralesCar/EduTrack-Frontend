@@ -13,7 +13,7 @@
 
 <div align="center">
   <h3>
-    <a href="https://edutrack-frontend-u0n5.onrender.com/">🚀 VER APLICACIÓN WEB EN VIVO (RENDER)</a>
+    <a href="http://13.59.189.231/">🚀 VER APLICACIÓN WEB EN VIVO (AWS EC2)</a>
   </h3>
 </div>
 
